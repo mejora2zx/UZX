@@ -119,6 +119,8 @@
   }
   .badge.activo { background: rgba(29,158,117,0.12); color: var(--ok); }
   .badge.inactivo { background: rgba(107,112,128,0.12); color: var(--muted); }
+  .badge.aprobado { background: rgba(29,158,117,0.12); color: var(--ok); }
+  .badge.reprobado { background: rgba(216,90,48,0.12); color: var(--err); }
   .link-accion {
     background: none;
     border: none;
@@ -182,6 +184,31 @@
       </thead>
       <tbody id="tabla-examenes-body">
         <tr><td colspan="5" class="vacio">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Resultados</h2>
+  <div class="card">
+    <div class="fila-2">
+      <div>
+        <label for="filtro-examen">Filtrar por examen</label>
+        <select id="filtro-examen">
+          <option value="">Todos los exámenes</option>
+        </select>
+      </div>
+      <div>
+        <label for="filtro-busqueda">Buscar por nombre o nómina</label>
+        <input type="text" id="filtro-busqueda" placeholder="Ej. Juan o 10234">
+      </div>
+    </div>
+    <button class="btn-secundario" id="btn-actualizar-resultados" type="button" style="margin-bottom:16px;">Actualizar</button>
+    <table id="tabla-resultados">
+      <thead>
+        <tr><th>Nombre</th><th>Nómina</th><th>Examen</th><th>Categoría</th><th>Resultado</th><th>Estado</th><th>Fecha</th></tr>
+      </thead>
+      <tbody id="tabla-resultados-body">
+        <tr><td colspan="7" class="vacio">Cargando...</td></tr>
       </tbody>
     </table>
   </div>
@@ -381,6 +408,89 @@
   }
 
   cargarTablaExamenes();
+
+  // ======= Cargar y mostrar resultados =======
+  let todosResultados = [];
+
+  async function cargarResultados() {
+    const tbody = document.getElementById("tabla-resultados-body");
+    tbody.innerHTML = `<tr><td colspan="7" class="vacio">Cargando...</td></tr>`;
+
+    const snapshot = await db.collection("resultados").get();
+    todosResultados = snapshot.docs.map(doc => {
+      const d = doc.data();
+      return {
+        nombre: d.nombre || "",
+        numeroNomina: d.numeroNomina || "",
+        examenTitulo: d.examenTitulo || "",
+        categoria: d.categoria || "",
+        puntaje: d.puntaje,
+        totalPreguntas: d.totalPreguntas,
+        porcentaje: d.porcentaje,
+        aprobado: d.aprobado,
+        fecha: d.fecha ? d.fecha.toDate() : null
+      };
+    });
+    todosResultados.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
+
+    poblarFiltroExamen();
+    renderTablaResultados();
+  }
+
+  function poblarFiltroExamen() {
+    const select = document.getElementById("filtro-examen");
+    const valorActual = select.value;
+    const titulos = [...new Set(todosResultados.map(r => r.examenTitulo))].filter(Boolean).sort();
+    select.innerHTML = `<option value="">Todos los exámenes</option>` +
+      titulos.map(t => `<option value="${t}">${t}</option>`).join("");
+    select.value = valorActual;
+  }
+
+  function renderTablaResultados() {
+    const tbody = document.getElementById("tabla-resultados-body");
+    const examenFiltro = document.getElementById("filtro-examen").value;
+    const busqueda = document.getElementById("filtro-busqueda").value.trim().toLowerCase();
+
+    let filtrados = todosResultados;
+    if (examenFiltro) {
+      filtrados = filtrados.filter(r => r.examenTitulo === examenFiltro);
+    }
+    if (busqueda) {
+      filtrados = filtrados.filter(r =>
+        r.nombre.toLowerCase().includes(busqueda) ||
+        String(r.numeroNomina).toLowerCase().includes(busqueda)
+      );
+    }
+
+    if (filtrados.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="vacio">No hay resultados con ese filtro.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = "";
+    filtrados.forEach(r => {
+      const tr = document.createElement("tr");
+      const fechaTexto = r.fecha
+        ? r.fecha.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
+        : "-";
+      tr.innerHTML = `
+        <td>${r.nombre}</td>
+        <td>${r.numeroNomina}</td>
+        <td>${r.examenTitulo}</td>
+        <td>${r.categoria}</td>
+        <td>${r.puntaje}/${r.totalPreguntas} (${r.porcentaje}%)</td>
+        <td><span class="badge ${r.aprobado ? "aprobado" : "reprobado"}">${r.aprobado ? "Aprobado" : "No aprobado"}</span></td>
+        <td>${fechaTexto}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById("filtro-examen").addEventListener("change", renderTablaResultados);
+  document.getElementById("filtro-busqueda").addEventListener("input", renderTablaResultados);
+  document.getElementById("btn-actualizar-resultados").addEventListener("click", cargarResultados);
+
+  cargarResultados();
 </script>
 </body>
 </html>
