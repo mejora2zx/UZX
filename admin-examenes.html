@@ -144,6 +144,22 @@
 
 <main>
 
+  <div id="login-box" class="card" style="max-width:360px; margin: 60px auto;">
+    <label for="login-email">Correo</label>
+    <input type="text" id="login-email" placeholder="j.hdez@zubex.com">
+    <label for="login-password">Contraseña</label>
+    <input type="text" id="login-password" placeholder="Contraseña" style="-webkit-text-security:disc; text-security:disc;">
+    <div class="status" id="login-status"></div>
+    <button class="primario" id="btn-login" style="width:100%;">Iniciar sesión</button>
+  </div>
+
+  <div id="panel-contenido" style="display:none;">
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <span id="usuario-actual" style="color:var(--muted); font-size:0.85rem;"></span>
+    <button class="link-accion" id="btn-logout">Cerrar sesión</button>
+  </div>
+
   <h2>Nuevo examen</h2>
   <div class="card">
     <div class="fila-2">
@@ -188,6 +204,41 @@
     </table>
   </div>
 
+  <h2>Base de personal (Sistemas)</h2>
+  <div class="card">
+    <p class="subtitle" style="margin-top:-4px;">Sube aquí el archivo de Sistemas (Excel o CSV) para actualizar los datos de nómina, nombre y departamento. Puedes repetir este paso cada vez que te manden un archivo nuevo — se actualiza, no se duplica.</p>
+
+    <label for="input-archivo-empleados">Empleados actualmente en la base: <span id="conteo-empleados">-</span></label>
+    <input type="file" id="input-archivo-empleados" accept=".xlsx,.xls,.csv">
+
+    <div id="mapeo-columnas" style="display:none; margin-top:16px;">
+      <div class="fila-2" style="grid-template-columns: repeat(3, 1fr);">
+        <div>
+          <label for="col-nomina">Columna: Número de nómina</label>
+          <select id="col-nomina"></select>
+        </div>
+        <div>
+          <label for="col-nombre">Columna: Nombre</label>
+          <select id="col-nombre"></select>
+        </div>
+        <div>
+          <label for="col-depto">Columna: Departamento</label>
+          <select id="col-depto"></select>
+        </div>
+      </div>
+
+      <label style="margin-top:10px;">Vista previa (primeras 5 filas)</label>
+      <table id="tabla-preview-empleados">
+        <thead><tr><th>Nómina</th><th>Nombre</th><th>Departamento</th></tr></thead>
+        <tbody id="tabla-preview-empleados-body"></tbody>
+      </table>
+
+      <button class="primario" id="btn-subir-empleados" style="margin-top:14px;">Subir a Firestore</button>
+    </div>
+
+    <div class="status" id="status-empleados"></div>
+  </div>
+
   <h2>Resultados</h2>
   <div class="card">
     <div class="fila-2">
@@ -212,11 +263,14 @@
       </tbody>
     </table>
   </div>
+  </div>
 
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
   const firebaseConfig = {
@@ -407,8 +461,6 @@
     });
   }
 
-  cargarTablaExamenes();
-
   // ======= Cargar y mostrar resultados =======
   let todosResultados = [];
 
@@ -490,7 +542,192 @@
   document.getElementById("filtro-busqueda").addEventListener("input", renderTablaResultados);
   document.getElementById("btn-actualizar-resultados").addEventListener("click", cargarResultados);
 
-  cargarResultados();
+  // ======= Importar base de personal desde Excel/CSV =======
+  let filasEmpleados = [];
+
+  async function actualizarConteoEmpleados() {
+    try {
+      const countSnap = await db.collection("empleados").count().get();
+      document.getElementById("conteo-empleados").textContent = countSnap.data().count;
+    } catch (e) {
+      document.getElementById("conteo-empleados").textContent = "?";
+    }
+  }
+
+  function adivinarColumna(headers, palabrasClave) {
+    const encontrada = headers.find(h =>
+      palabrasClave.some(p => h.toLowerCase().includes(p))
+    );
+    return encontrada || headers[0];
+  }
+
+  document.getElementById("input-archivo-empleados").addEventListener("change", (evento) => {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+
+    const status = document.getElementById("status-empleados");
+    status.style.display = "none";
+
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const datos = new Uint8Array(e.target.result);
+      const libro = XLSX.read(datos, { type: "array" });
+      const hoja = libro.Sheets[libro.SheetNames[0]];
+      filasEmpleados = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+
+      if (filasEmpleados.length === 0) {
+        status.className = "status err";
+        status.textContent = "El archivo no tiene filas de datos.";
+        return;
+      }
+
+      const headers = Object.keys(filasEmpleados[0]);
+      const selectNomina = document.getElementById("col-nomina");
+      const selectNombre = document.getElementById("col-nombre");
+      const selectDepto = document.getElementById("col-depto");
+
+      const opciones = headers.map(h => `<option value="${h}">${h}</option>`).join("");
+      selectNomina.innerHTML = opciones;
+      selectNombre.innerHTML = opciones;
+      selectDepto.innerHTML = opciones;
+
+      selectNomina.value = adivinarColumna(headers, ["nomina", "número", "numero", "empleado"]);
+      selectNombre.value = adivinarColumna(headers, ["nombre"]);
+      selectDepto.value = adivinarColumna(headers, ["depart", "área", "area"]);
+
+      document.getElementById("mapeo-columnas").style.display = "block";
+      actualizarVistaPrevia();
+    };
+    lector.readAsArrayBuffer(archivo);
+  });
+
+  function actualizarVistaPrevia() {
+    const colNomina = document.getElementById("col-nomina").value;
+    const colNombre = document.getElementById("col-nombre").value;
+    const colDepto = document.getElementById("col-depto").value;
+
+    const tbody = document.getElementById("tabla-preview-empleados-body");
+    tbody.innerHTML = filasEmpleados.slice(0, 5).map(fila => `
+      <tr>
+        <td>${fila[colNomina]}</td>
+        <td>${fila[colNombre]}</td>
+        <td>${fila[colDepto]}</td>
+      </tr>
+    `).join("");
+  }
+
+  document.getElementById("col-nomina").addEventListener("change", actualizarVistaPrevia);
+  document.getElementById("col-nombre").addEventListener("change", actualizarVistaPrevia);
+  document.getElementById("col-depto").addEventListener("change", actualizarVistaPrevia);
+
+  document.getElementById("btn-subir-empleados").addEventListener("click", async () => {
+    const status = document.getElementById("status-empleados");
+    const btn = document.getElementById("btn-subir-empleados");
+    const colNomina = document.getElementById("col-nomina").value;
+    const colNombre = document.getElementById("col-nombre").value;
+    const colDepto = document.getElementById("col-depto").value;
+
+    const registros = filasEmpleados
+      .map(fila => ({
+        numeroNomina: String(fila[colNomina]).trim(),
+        nombre: String(fila[colNombre]).trim(),
+        departamento: String(fila[colDepto]).trim()
+      }))
+      .filter(r => r.numeroNomina);
+
+    if (registros.length === 0) {
+      status.className = "status err";
+      status.textContent = "No se encontraron filas con número de nómina válido.";
+      return;
+    }
+
+    btn.disabled = true;
+    const TAMANO_LOTE = 400; // límite de Firestore por batch es 500, dejamos margen
+    let subidos = 0;
+
+    try {
+      for (let i = 0; i < registros.length; i += TAMANO_LOTE) {
+        const lote = registros.slice(i, i + TAMANO_LOTE);
+        const batch = db.batch();
+        lote.forEach(r => {
+          const ref = db.collection("empleados").doc(r.numeroNomina);
+          batch.set(ref, {
+            numeroNomina: r.numeroNomina,
+            nombre: r.nombre,
+            departamento: r.departamento,
+            actualizado: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        });
+        await batch.commit();
+        subidos += lote.length;
+        btn.textContent = `Subiendo... ${subidos}/${registros.length}`;
+      }
+
+      status.className = "status ok";
+      status.textContent = `Listo: se actualizaron ${subidos} empleados.`;
+      document.getElementById("mapeo-columnas").style.display = "none";
+      document.getElementById("input-archivo-empleados").value = "";
+      actualizarConteoEmpleados();
+    } catch (error) {
+      status.className = "status err";
+      status.textContent = "Error al subir: " + error.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Subir a Firestore";
+    }
+  });
+
+  // ======= Autenticación: solo se ve el panel si hay sesión iniciada =======
+  const auth = firebase.auth();
+
+  document.getElementById("btn-login").addEventListener("click", async () => {
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const status = document.getElementById("login-status");
+    const btn = document.getElementById("btn-login");
+
+    if (!email || !password) {
+      status.className = "status err";
+      status.textContent = "Ingresa tu correo y contraseña.";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Entrando...";
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      // onAuthStateChanged se encarga de mostrar el panel
+    } catch (error) {
+      status.className = "status err";
+      status.textContent = "Correo o contraseña incorrectos.";
+      btn.disabled = false;
+      btn.textContent = "Iniciar sesión";
+    }
+  });
+
+  document.getElementById("btn-logout").addEventListener("click", () => {
+    auth.signOut();
+  });
+
+  auth.onAuthStateChanged(usuario => {
+    const loginBox = document.getElementById("login-box");
+    const panel = document.getElementById("panel-contenido");
+    const btnLogin = document.getElementById("btn-login");
+
+    if (usuario) {
+      loginBox.style.display = "none";
+      panel.style.display = "block";
+      document.getElementById("usuario-actual").textContent = "Conectado como " + usuario.email;
+      cargarTablaExamenes();
+      cargarResultados();
+      actualizarConteoEmpleados();
+    } else {
+      loginBox.style.display = "block";
+      panel.style.display = "none";
+      btnLogin.disabled = false;
+      btnLogin.textContent = "Iniciar sesión";
+    }
+  });
 </script>
 </body>
 </html>
