@@ -320,10 +320,18 @@
       btn.textContent = "Enviando...";
 
       // Calificamos en el navegador solo para mostrar el resultado en pantalla.
-      // Las respuestas correctas nunca se muestran al operador.
+      // Las respuestas correctas nunca se muestran al operador, pero sí quedan
+      // guardadas en Firestore para que Mejora Continua pueda revisar el detalle.
       let correctas = 0;
-      examen.preguntas.forEach((p, i) => {
-        if (respuestas[i] === p.respuestaCorrecta) correctas++;
+      const detalle = examen.preguntas.map((p, i) => {
+        const esCorrecta = respuestas[i] === p.respuestaCorrecta;
+        if (esCorrecta) correctas++;
+        return {
+          pregunta: p.texto,
+          respuestaDada: p.opciones[respuestas[i]],
+          respuestaCorrecta: p.opciones[p.respuestaCorrecta],
+          correcta: esCorrecta
+        };
       });
       const total = examen.preguntas.length;
       const porcentaje = Math.round((correctas / total) * 100);
@@ -341,6 +349,7 @@
           totalPreguntas: total,
           porcentaje: porcentaje,
           aprobado: aprobado,
+          detalle: detalle,
           fecha: firebase.firestore.FieldValue.serverTimestamp()
         });
         mostrarResultado(examen, correctas, total, porcentaje, aprobado, examenId);
