@@ -175,6 +175,19 @@
   .detalle-pregunta .respuesta.correcta { color: var(--ok); }
   .detalle-pregunta .respuesta.incorrecta { color: var(--err); }
   .detalle-pregunta .correcta-real { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+
+  .nivel-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: white;
+  }
+  .nivel-badge.en-proceso { background: #E53935; }
+  .nivel-badge.basico { background: #F2A600; color: #3A2E00; }
+  .nivel-badge.intermedio { background: #FB8C00; }
+  .nivel-badge.completo { background: #2E7D32; }
 </style>
 </head>
 <body>
@@ -214,6 +227,7 @@
 
     <div style="margin-top:20px;">
       <button class="primario" id="btn-guardar-examen">Guardar examen</button>
+      <button class="btn-secundario" id="btn-cancelar-edicion" type="button" style="display:none;">Cancelar edición</button>
     </div>
     <div class="status" id="status-guardar"></div>
   </div>
@@ -279,13 +293,14 @@
         <input type="text" id="filtro-busqueda" placeholder="Ej. Juan o 10234">
       </div>
     </div>
-    <button class="btn-secundario" id="btn-actualizar-resultados" type="button" style="margin-bottom:16px;">Actualizar</button>
+    <button class="btn-secundario" id="btn-actualizar-resultados" type="button">Actualizar</button>
+    <button class="btn-secundario" id="btn-exportar-excel" type="button" style="margin-bottom:16px;">Descargar Excel</button>
     <table id="tabla-resultados">
       <thead>
-        <tr><th>Nombre</th><th>Nómina</th><th>Examen</th><th>Categoría</th><th>Resultado</th><th>Estado</th><th>Fecha</th><th></th></tr>
+        <tr><th>Nombre</th><th>Nómina</th><th>Examen</th><th>Categoría</th><th>Resultado</th><th>Nivel</th><th>Estado</th><th>Fecha</th><th></th></tr>
       </thead>
       <tbody id="tabla-resultados-body">
-        <tr><td colspan="7" class="vacio">Cargando...</td></tr>
+        <tr><td colspan="9" class="vacio">Cargando...</td></tr>
       </tbody>
     </table>
   </div>
@@ -316,29 +331,45 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
+  // ======= Escala de niveles usada por los instructores =======
+  function obtenerNivel(porcentaje) {
+    if (porcentaje >= 91) return { label: "Completo", clase: "completo" };
+    if (porcentaje >= 81) return { label: "Intermedio", clase: "intermedio" };
+    if (porcentaje >= 60) return { label: "Básico", clase: "basico" };
+    return { label: "En proceso", clase: "en-proceso" };
+  }
+
   let contadorPreguntas = 0;
   const contenedor = document.getElementById("preguntas-contenedor");
 
   // ======= Agregar un bloque de pregunta al formulario =======
-  function agregarBloquePregunta() {
+  function agregarBloquePregunta(datosPregunta) {
     contadorPreguntas++;
     const id = contadorPreguntas;
     const div = document.createElement("div");
     div.className = "pregunta-item";
     div.dataset.id = id;
+    const textoEscapado = datosPregunta ? datosPregunta.texto.replace(/"/g, "&quot;") : "";
     div.innerHTML = `
       <div class="encabezado">
         <span>Pregunta ${id}</span>
         <button type="button" class="btn-quitar" onclick="quitarPregunta(${id})">Quitar</button>
       </div>
-      <input type="text" class="pregunta-texto" placeholder="Escribe la pregunta">
+      <input type="text" class="pregunta-texto" placeholder="Escribe la pregunta" value="${textoEscapado}">
       <div class="opciones-lista"></div>
       <button type="button" class="link-accion" onclick="agregarOpcion(${id})">+ Agregar opción</button>
     `;
     contenedor.appendChild(div);
-    // Toda pregunta empieza con 2 opciones
-    agregarOpcion(id);
-    agregarOpcion(id);
+
+    if (datosPregunta) {
+      datosPregunta.opciones.forEach((op, idx) => {
+        agregarOpcion(id, op, idx === datosPregunta.respuestaCorrecta);
+      });
+    } else {
+      // Toda pregunta nueva empieza con 2 opciones
+      agregarOpcion(id);
+      agregarOpcion(id);
+    }
   }
 
   function quitarPregunta(id) {
@@ -346,23 +377,60 @@
     if (bloque) bloque.remove();
   }
 
-  function agregarOpcion(preguntaId) {
+  function agregarOpcion(preguntaId, textoPrellenado, esCorrecta) {
     const bloque = contenedor.querySelector(`.pregunta-item[data-id="${preguntaId}"]`);
     const lista = bloque.querySelector(".opciones-lista");
     const opcionId = lista.children.length;
     const fila = document.createElement("div");
     fila.className = "opcion-fila";
+    const textoEscapado = textoPrellenado ? textoPrellenado.replace(/"/g, "&quot;") : "";
     fila.innerHTML = `
-      <input type="radio" name="correcta-${preguntaId}" title="Marcar como respuesta correcta" value="${opcionId}">
-      <input type="text" class="opcion-texto" placeholder="Opción de respuesta">
+      <input type="radio" name="correcta-${preguntaId}" title="Marcar como respuesta correcta" value="${opcionId}" ${esCorrecta ? "checked" : ""}>
+      <input type="text" class="opcion-texto" placeholder="Opción de respuesta" value="${textoEscapado}">
       <button type="button" class="btn-quitar" onclick="this.parentElement.remove()">Quitar</button>
     `;
     lista.appendChild(fila);
   }
 
-  document.getElementById("btn-agregar-pregunta").addEventListener("click", agregarBloquePregunta);
+  document.getElementById("btn-agregar-pregunta").addEventListener("click", () => agregarBloquePregunta());
   // Arrancamos con una pregunta ya visible
   agregarBloquePregunta();
+
+  // ======= Edición de examenes existentes =======
+  let examenEditandoId = null;
+
+  function cancelarEdicion() {
+    examenEditandoId = null;
+    document.getElementById("input-titulo").value = "";
+    document.getElementById("input-umbral").value = 80;
+    document.getElementById("input-categoria").value = "Institucionales";
+    contenedor.innerHTML = "";
+    contadorPreguntas = 0;
+    agregarBloquePregunta();
+    document.getElementById("btn-guardar-examen").textContent = "Guardar examen";
+    document.getElementById("btn-cancelar-edicion").style.display = "none";
+  }
+
+  document.getElementById("btn-cancelar-edicion").addEventListener("click", cancelarEdicion);
+
+  async function editarExamen(id) {
+    const doc = await db.collection("examenes").doc(id).get();
+    if (!doc.exists) return;
+    const examen = doc.data();
+
+    examenEditandoId = id;
+    document.getElementById("input-titulo").value = examen.titulo;
+    document.getElementById("input-categoria").value = examen.categoria;
+    document.getElementById("input-umbral").value = examen.umbralAprobacion || 80;
+
+    contenedor.innerHTML = "";
+    contadorPreguntas = 0;
+    examen.preguntas.forEach(p => agregarBloquePregunta(p));
+
+    document.getElementById("btn-guardar-examen").textContent = "Guardar cambios";
+    document.getElementById("btn-cancelar-edicion").style.display = "inline-block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   // ======= Guardar el examen completo en Firestore =======
   document.getElementById("btn-guardar-examen").addEventListener("click", async () => {
@@ -406,32 +474,38 @@
     if (preguntas.length !== bloques.length) return; // hubo un error de validación arriba
 
     btn.disabled = true;
-    btn.textContent = "Guardando...";
+    btn.textContent = examenEditandoId ? "Guardando cambios..." : "Guardando...";
 
     try {
-      await db.collection("examenes").add({
-        titulo,
-        categoria,
-        umbralAprobacion: umbral,
-        activo: true,
-        preguntas,
-        creado: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      status.className = "status ok";
-      status.textContent = "Examen guardado correctamente.";
-      // Limpiamos el formulario para capturar el siguiente examen
-      document.getElementById("input-titulo").value = "";
-      document.getElementById("input-umbral").value = 80;
-      contenedor.innerHTML = "";
-      contadorPreguntas = 0;
-      agregarBloquePregunta();
+      if (examenEditandoId) {
+        await db.collection("examenes").doc(examenEditandoId).update({
+          titulo,
+          categoria,
+          umbralAprobacion: umbral,
+          preguntas
+        });
+        status.className = "status ok";
+        status.textContent = "Examen actualizado correctamente.";
+      } else {
+        await db.collection("examenes").add({
+          titulo,
+          categoria,
+          umbralAprobacion: umbral,
+          activo: true,
+          preguntas,
+          creado: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        status.className = "status ok";
+        status.textContent = "Examen guardado correctamente.";
+      }
+      cancelarEdicion();
       cargarTablaExamenes();
     } catch (error) {
       status.className = "status err";
       status.textContent = "Error al guardar: " + error.message;
     } finally {
       btn.disabled = false;
-      btn.textContent = "Guardar examen";
+      btn.textContent = examenEditandoId ? "Guardar cambios" : "Guardar examen";
     }
   });
 
@@ -458,12 +532,17 @@
         <td>${data.preguntas.length}</td>
         <td><span class="badge ${data.activo ? "activo" : "inactivo"}">${data.activo ? "Activo" : "Inactivo"}</span></td>
         <td>
+          <button class="link-accion" data-accion="editar" data-id="${doc.id}">Editar</button>
           <button class="link-accion" data-accion="copiar" data-link="${link}">Copiar link</button>
           <button class="link-accion" data-accion="toggle" data-id="${doc.id}" data-activo="${data.activo}">${data.activo ? "Desactivar" : "Activar"}</button>
           <button class="link-accion err" data-accion="eliminar" data-id="${doc.id}">Eliminar</button>
         </td>
       `;
       tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll("[data-accion='editar']").forEach(b => {
+      b.addEventListener("click", () => editarExamen(b.dataset.id));
     });
 
     tbody.querySelectorAll("[data-accion='copiar']").forEach(b => {
@@ -505,6 +584,7 @@
       return {
         nombre: d.nombre || "",
         numeroNomina: d.numeroNomina || "",
+        departamento: d.departamento || "",
         examenTitulo: d.examenTitulo || "",
         categoria: d.categoria || "",
         puntaje: d.puntaje,
@@ -530,6 +610,8 @@
     select.value = valorActual;
   }
 
+  let filtradosActual = [];
+
   function renderTablaResultados() {
     const tbody = document.getElementById("tabla-resultados-body");
     const examenFiltro = document.getElementById("filtro-examen").value;
@@ -545,9 +627,10 @@
         String(r.numeroNomina).toLowerCase().includes(busqueda)
       );
     }
+    filtradosActual = filtrados;
 
     if (filtrados.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="vacio">No hay resultados con ese filtro.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="vacio">No hay resultados con ese filtro.</td></tr>`;
       return;
     }
 
@@ -557,12 +640,14 @@
       const fechaTexto = r.fecha
         ? r.fecha.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
         : "-";
+      const nivel = obtenerNivel(r.porcentaje);
       tr.innerHTML = `
         <td>${r.nombre}</td>
         <td>${r.numeroNomina}</td>
         <td>${r.examenTitulo}</td>
         <td>${r.categoria}</td>
         <td>${r.puntaje}/${r.totalPreguntas} (${r.porcentaje}%)</td>
+        <td><span class="nivel-badge ${nivel.clase}">${nivel.label}</span></td>
         <td><span class="badge ${r.aprobado ? "aprobado" : "reprobado"}">${r.aprobado ? "Aprobado" : "No aprobado"}</span></td>
         <td>${fechaTexto}</td>
         <td>${r.detalle
@@ -613,6 +698,28 @@
   document.getElementById("filtro-examen").addEventListener("change", renderTablaResultados);
   document.getElementById("filtro-busqueda").addEventListener("input", renderTablaResultados);
   document.getElementById("btn-actualizar-resultados").addEventListener("click", cargarResultados);
+
+  document.getElementById("btn-exportar-excel").addEventListener("click", () => {
+    if (filtradosActual.length === 0) return;
+
+    const filas = filtradosActual.map(r => ({
+      "Nombre": r.nombre,
+      "Número de nómina": r.numeroNomina,
+      "Departamento": r.departamento || "",
+      "Examen": r.examenTitulo,
+      "Categoría": r.categoria,
+      "Puntaje": `${r.puntaje}/${r.totalPreguntas}`,
+      "Porcentaje": r.porcentaje,
+      "Nivel": obtenerNivel(r.porcentaje).label,
+      "Aprobado": r.aprobado ? "Sí" : "No",
+      "Fecha": r.fecha ? r.fecha.toLocaleString("es-MX") : ""
+    }));
+
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Resultados");
+    XLSX.writeFile(libro, `resultados_examenes_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  });
 
   // ======= Importar base de personal desde Excel/CSV =======
   let filasEmpleados = [];
