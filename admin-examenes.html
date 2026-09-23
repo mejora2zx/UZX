@@ -199,6 +199,19 @@
 
 <main>
 
+  <div id="login-box" class="card" style="max-width:340px; margin: 60px auto;">
+    <label for="login-password">Contraseña de acceso</label>
+    <input type="text" id="login-password" placeholder="Contraseña" style="-webkit-text-security:disc; text-security:disc;">
+    <div class="status" id="login-status"></div>
+    <button class="primario" id="btn-login" style="width:100%;">Entrar</button>
+  </div>
+
+  <div id="panel-contenido" style="display:none;">
+
+  <div style="text-align:right; margin-bottom:8px;">
+    <button class="link-accion" id="btn-logout">Cerrar sesión</button>
+  </div>
+
   <h2>Nuevo examen</h2>
   <div class="card">
     <div class="fila-2">
@@ -304,6 +317,7 @@
       </tbody>
     </table>
   </div>
+  </div>
 
 </main>
 
@@ -316,6 +330,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
@@ -857,10 +872,57 @@
     }
   });
 
-  // ======= Carga inicial =======
-  cargarTablaExamenes();
-  cargarResultados();
-  actualizarConteoEmpleados();
+  // ======= Acceso con contraseña compartida =======
+  // Todos los instructores usan la MISMA cuenta (un solo correo, definido aquí abajo).
+  // Tú creas esta cuenta una sola vez en Firebase (Authentication > Users > Add user)
+  // y les das la contraseña que le hayas puesto ahí.
+  const CORREO_ACCESO = "n.candia@zubex.com.mx";
+
+  const auth = firebase.auth();
+
+  document.getElementById("btn-login").addEventListener("click", async () => {
+    const password = document.getElementById("login-password").value;
+    const status = document.getElementById("login-status");
+    const btn = document.getElementById("btn-login");
+
+    if (!password) {
+      status.className = "status err";
+      status.textContent = "Ingresa la contraseña.";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Entrando...";
+    try {
+      await auth.signInWithEmailAndPassword(CORREO_ACCESO, password);
+    } catch (error) {
+      status.className = "status err";
+      status.textContent = "Contraseña incorrecta.";
+      btn.disabled = false;
+      btn.textContent = "Entrar";
+    }
+  });
+
+  document.getElementById("btn-logout").addEventListener("click", () => auth.signOut());
+
+  auth.onAuthStateChanged(usuario => {
+    const loginBox = document.getElementById("login-box");
+    const panel = document.getElementById("panel-contenido");
+    const btnLogin = document.getElementById("btn-login");
+
+    if (usuario) {
+      loginBox.style.display = "none";
+      panel.style.display = "block";
+      cargarTablaExamenes();
+      cargarResultados();
+      actualizarConteoEmpleados();
+    } else {
+      loginBox.style.display = "block";
+      panel.style.display = "none";
+      btnLogin.disabled = false;
+      btnLogin.textContent = "Entrar";
+    }
+  });
 </script>
 </body>
 </html>
