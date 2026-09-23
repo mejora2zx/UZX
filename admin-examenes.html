@@ -525,7 +525,8 @@
     snapshot.forEach(doc => {
       const data = doc.data();
       const tr = document.createElement("tr");
-      const link = `${window.location.origin}${window.location.pathname.replace("admin-examenes.html", "")}?examen=${doc.id}`;
+      const carpeta = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/") + 1);
+      const link = `${window.location.origin}${carpeta}?examen=${doc.id}`;
       tr.innerHTML = `
         <td>${data.titulo}</td>
         <td>${data.categoria}</td>
