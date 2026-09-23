@@ -121,6 +121,22 @@
 
   .vacio { color: var(--muted); text-align: center; padding: 40px 0; }
   .cargando { color: var(--muted); text-align: center; padding: 40px 0; }
+
+  .nivel-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: white;
+  }
+  .nivel-badge.en-proceso { background: #E53935; }
+  .nivel-badge.basico { background: #F2A600; color: #3A2E00; }
+  .nivel-badge.intermedio { background: #FB8C00; }
+  .nivel-badge.completo { background: #2E7D32; }
+  .puntaje-fila { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0; }
+
+  .estado-busqueda { font-size: 0.85rem; margin-top: -10px; margin-bottom: 16px; }
 </style>
 </head>
 <body>
@@ -282,11 +298,12 @@
       <h1>${examen.titulo}</h1>
       <p class="subtitle">${examen.categoria} · ${examen.preguntas.length} preguntas</p>
       <div class="card">
-        <label for="input-nombre">Nombre completo</label>
-        <input type="text" id="input-nombre" placeholder="Ej. Juan Pérez">
-
         <label for="input-nomina">Número de nómina</label>
         <input type="text" id="input-nomina" placeholder="Ej. 10234">
+        <div class="estado-busqueda" id="estado-busqueda-empleado"></div>
+
+        <label for="input-nombre">Nombre completo</label>
+        <input type="text" id="input-nombre" placeholder="Ej. Juan Pérez">
 
         ${preguntasHtml}
 
@@ -294,6 +311,33 @@
         <button class="primario" id="btn-enviar">Enviar examen</button>
       </div>
     `;
+
+    let departamentoActual = "";
+
+    document.getElementById("input-nomina").addEventListener("blur", async () => {
+      const nomina = document.getElementById("input-nomina").value.trim();
+      const estado = document.getElementById("estado-busqueda-empleado");
+      if (!nomina) { estado.textContent = ""; return; }
+
+      estado.style.color = "var(--muted)";
+      estado.textContent = "Buscando...";
+      try {
+        const empleadoDoc = await db.collection("empleados").doc(nomina).get();
+        if (empleadoDoc.exists) {
+          const emp = empleadoDoc.data();
+          document.getElementById("input-nombre").value = emp.nombre || "";
+          departamentoActual = emp.departamento || "";
+          estado.style.color = "var(--ok)";
+          estado.textContent = `${emp.nombre} · ${emp.departamento}`;
+        } else {
+          departamentoActual = "";
+          estado.style.color = "var(--muted)";
+          estado.textContent = "No encontrado en la base de personal. Captura tu nombre manualmente.";
+        }
+      } catch (e) {
+        estado.textContent = "";
+      }
+    });
 
     document.getElementById("btn-enviar").addEventListener("click", async () => {
       const btn = document.getElementById("btn-enviar");
@@ -345,6 +389,7 @@
           categoria: examen.categoria,
           nombre: nombre,
           numeroNomina: nomina,
+          departamento: departamentoActual,
           puntaje: correctas,
           totalPreguntas: total,
           porcentaje: porcentaje,
@@ -363,13 +408,24 @@
   }
 
   // ======= VISTA 4: RESULTADO (sin mostrar respuestas correctas) =======
+  function obtenerNivel(porcentaje) {
+    if (porcentaje >= 91) return { label: "Completo", clase: "completo" };
+    if (porcentaje >= 81) return { label: "Intermedio", clase: "intermedio" };
+    if (porcentaje >= 60) return { label: "Básico", clase: "basico" };
+    return { label: "En proceso", clase: "en-proceso" };
+  }
+
   function mostrarResultado(examen, correctas, total, porcentaje, aprobado, examenId) {
+    const nivel = obtenerNivel(porcentaje);
     app.innerHTML = `
       <div class="card resultado">
         <div class="estado ${aprobado ? "aprobado" : "reprobado"}">
           ${aprobado ? "Examen aprobado" : "Examen no aprobado"}
         </div>
-        <div class="puntaje ${aprobado ? "aprobado" : "reprobado"}">${porcentaje}%</div>
+        <div class="puntaje-fila">
+          <div class="puntaje ${aprobado ? "aprobado" : "reprobado"}">${porcentaje}%</div>
+          <span class="nivel-badge ${nivel.clase}">${nivel.label}</span>
+        </div>
         <p class="detalle">${correctas} de ${total} preguntas correctas</p>
         ${aprobado
           ? `<p class="detalle">¡Bien hecho! Tu resultado ha sido registrado.</p>`
