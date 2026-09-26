@@ -296,6 +296,73 @@
     <div class="status" id="status-empleados"></div>
   </div>
 
+  <h2>Importar historial de Forms</h2>
+  <div class="card">
+    <p class="subtitle" style="margin-top:-4px;">Sube el Excel exportado de un examen anterior hecho en Forms, para agregar sus resultados al historial. Puedes repetirlo por cada examen viejo que quieras concentrar.</p>
+
+    <div class="fila-2">
+      <div>
+        <label for="forms-titulo">Nombre del examen</label>
+        <input type="text" id="forms-titulo" placeholder="Ej. Buenas Prácticas de Manufactura (BPM)">
+      </div>
+      <div>
+        <label for="forms-categoria">Categoría</label>
+        <select id="forms-categoria">
+          <option>Institucionales</option>
+          <option>Extrusión</option>
+          <option>Impresión</option>
+          <option>Conversión</option>
+          <option>Corrugado</option>
+        </select>
+      </div>
+    </div>
+
+    <input type="file" id="input-archivo-forms" accept=".xlsx,.xls,.csv">
+
+    <div id="mapeo-forms" style="display:none; margin-top:16px;">
+      <div class="fila-2">
+        <div>
+          <label for="forms-col-nomina">Columna: Número de nómina</label>
+          <select id="forms-col-nomina"></select>
+        </div>
+        <div>
+          <label for="forms-col-fecha">Columna: Fecha de finalización</label>
+          <select id="forms-col-fecha"></select>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div>
+          <label for="forms-col-puntaje">Columna: Puntaje obtenido</label>
+          <select id="forms-col-puntaje"></select>
+        </div>
+        <div>
+          <label for="forms-col-area">Columna: Área/Depto (si no está en tu base de personal)</label>
+          <select id="forms-col-area"></select>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div>
+          <label for="forms-puntaje-max">Puntaje máximo posible</label>
+          <input type="number" id="forms-puntaje-max" value="100">
+        </div>
+        <div>
+          <label for="forms-umbral">% mínimo para aprobar (de ese entonces)</label>
+          <input type="number" id="forms-umbral" value="80">
+        </div>
+      </div>
+
+      <label style="margin-top:10px;">Vista previa (primeras 5 filas)</label>
+      <table id="tabla-preview-forms">
+        <thead><tr><th>Nómina</th><th>Fecha</th><th>Puntaje</th><th>%</th><th>Estado</th></tr></thead>
+        <tbody id="tabla-preview-forms-body"></tbody>
+      </table>
+
+      <button class="primario" id="btn-subir-forms" style="margin-top:14px;">Importar resultados</button>
+    </div>
+
+    <div class="status" id="status-forms"></div>
+  </div>
+
   <h2>Resultados</h2>
   <div class="card">
     <div class="fila-2">
@@ -636,7 +703,7 @@
 
   async function cargarResultados() {
     const tbody = document.getElementById("tabla-resultados-body");
-    tbody.innerHTML = `<tr><td colspan="7" class="vacio">Cargando...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="vacio">Cargando...</td></tr>`;
 
     const snapshot = await db.collection("resultados").get();
     todosResultados = snapshot.docs.map(doc => {
@@ -923,6 +990,181 @@
     } finally {
       btn.disabled = false;
       btn.textContent = "Subir a Firestore";
+    }
+  });
+
+  // ======= Importar historial de exámenes hechos en Forms =======
+  let filasForms = [];
+
+  document.getElementById("input-archivo-forms").addEventListener("change", (evento) => {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+
+    const status = document.getElementById("status-forms");
+    status.style.display = "none";
+
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const datos = new Uint8Array(e.target.result);
+      const libro = XLSX.read(datos, { type: "array" });
+      const hoja = libro.Sheets[libro.SheetNames[0]];
+      filasForms = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+
+      if (filasForms.length === 0) {
+        status.className = "status err";
+        status.textContent = "El archivo no tiene filas de datos.";
+        return;
+      }
+
+      const headers = Object.keys(filasForms[0]);
+      const selNomina = document.getElementById("forms-col-nomina");
+      const selFecha = document.getElementById("forms-col-fecha");
+      const selPuntaje = document.getElementById("forms-col-puntaje");
+      const selArea = document.getElementById("forms-col-area");
+
+      const opciones = headers.map(h => `<option value="${h}">${h}</option>`).join("");
+      selNomina.innerHTML = opciones;
+      selFecha.innerHTML = opciones;
+      selPuntaje.innerHTML = opciones;
+      selArea.innerHTML = `<option value="">(ninguna)</option>` + opciones;
+
+      selNomina.value = adivinarColumna(headers, ["nomina", "número", "numero"]);
+      selFecha.value = adivinarColumna(headers, ["finalizaci", "hora de fin", "fecha"]);
+      selPuntaje.value = adivinarColumna(headers, ["total de puntos", "puntaje", "calificaci"]);
+      selArea.value = adivinarColumna(headers, ["área", "area", "depart"]);
+
+      document.getElementById("mapeo-forms").style.display = "block";
+      actualizarVistaPreviaForms();
+    };
+    lector.readAsArrayBuffer(archivo);
+  });
+
+  function actualizarVistaPreviaForms() {
+    if (filasForms.length === 0) return;
+    const colNomina = document.getElementById("forms-col-nomina").value;
+    const colFecha = document.getElementById("forms-col-fecha").value;
+    const colPuntaje = document.getElementById("forms-col-puntaje").value;
+    const puntajeMax = parseFloat(document.getElementById("forms-puntaje-max").value) || 100;
+    const umbral = parseFloat(document.getElementById("forms-umbral").value) || 80;
+
+    const tbody = document.getElementById("tabla-preview-forms-body");
+    tbody.innerHTML = filasForms.slice(0, 5).map(fila => {
+      const puntos = parseFloat(fila[colPuntaje]) || 0;
+      const porcentaje = Math.round((puntos / puntajeMax) * 100);
+      const aprobado = porcentaje >= umbral;
+      return `
+        <tr>
+          <td>${fila[colNomina]}</td>
+          <td>${fila[colFecha]}</td>
+          <td>${puntos}/${puntajeMax}</td>
+          <td>${porcentaje}%</td>
+          <td><span class="badge ${aprobado ? "aprobado" : "reprobado"}">${aprobado ? "Aprobado" : "No aprobado"}</span></td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  ["forms-col-nomina", "forms-col-fecha", "forms-col-puntaje", "forms-col-area", "forms-puntaje-max", "forms-umbral"].forEach(id => {
+    document.getElementById(id).addEventListener("change", actualizarVistaPreviaForms);
+  });
+
+  // Convierte una fecha de Excel (serial numérico) o texto a un objeto Date de JS
+  function convertirFechaForms(valor) {
+    let fecha;
+    if (valor instanceof Date) {
+      fecha = valor;
+    } else if (typeof valor === "number") {
+      fecha = new Date(Math.round((valor - 25569) * 86400 * 1000));
+    } else {
+      fecha = new Date(valor);
+    }
+    return isNaN(fecha.getTime()) ? new Date() : fecha;
+  }
+
+  document.getElementById("btn-subir-forms").addEventListener("click", async () => {
+    const status = document.getElementById("status-forms");
+    const btn = document.getElementById("btn-subir-forms");
+
+    const tituloExamen = document.getElementById("forms-titulo").value.trim();
+    const categoria = document.getElementById("forms-categoria").value;
+    const colNomina = document.getElementById("forms-col-nomina").value;
+    const colFecha = document.getElementById("forms-col-fecha").value;
+    const colPuntaje = document.getElementById("forms-col-puntaje").value;
+    const colArea = document.getElementById("forms-col-area").value;
+    const puntajeMax = parseFloat(document.getElementById("forms-puntaje-max").value) || 100;
+    const umbral = parseFloat(document.getElementById("forms-umbral").value) || 80;
+
+    if (!tituloExamen) {
+      status.className = "status err";
+      status.textContent = "Ponle un nombre al examen.";
+      return;
+    }
+
+    btn.disabled = true;
+    const TAMANO_LOTE = 400;
+    let procesados = 0;
+    let omitidos = 0;
+
+    try {
+      for (let i = 0; i < filasForms.length; i += TAMANO_LOTE) {
+        const lote = filasForms.slice(i, i + TAMANO_LOTE);
+        const batch = db.batch();
+
+        for (const fila of lote) {
+          const nomina = String(fila[colNomina] || "").trim();
+          if (!nomina) { omitidos++; continue; }
+
+          const puntos = parseFloat(fila[colPuntaje]) || 0;
+          const porcentaje = Math.round((puntos / puntajeMax) * 100);
+          const aprobado = porcentaje >= umbral;
+
+          // Completamos nombre y departamento desde la base de personal, si existe
+          let nombre = "";
+          let departamento = colArea ? String(fila[colArea] || "").trim() : "";
+          try {
+            const empleadoDoc = await db.collection("empleados").doc(nomina).get();
+            if (empleadoDoc.exists) {
+              const emp = empleadoDoc.data();
+              nombre = emp.nombre || "";
+              departamento = emp.departamento || departamento;
+            }
+          } catch (e) { /* seguimos sin nombre si falla la búsqueda */ }
+
+          const fechaDate = convertirFechaForms(fila[colFecha]);
+          const ref = db.collection("resultados").doc();
+          batch.set(ref, {
+            examenId: null,
+            examenTitulo: tituloExamen,
+            categoria: categoria,
+            nombre: nombre,
+            numeroNomina: nomina,
+            departamento: departamento,
+            puntaje: puntos,
+            totalPreguntas: puntajeMax,
+            porcentaje: porcentaje,
+            aprobado: aprobado,
+            origen: "forms_historico",
+            fecha: firebase.firestore.Timestamp.fromDate(fechaDate)
+          });
+          procesados++;
+        }
+
+        await batch.commit();
+        btn.textContent = `Importando... ${procesados}/${filasForms.length}`;
+      }
+
+      status.className = "status ok";
+      status.textContent = `Listo: se importaron ${procesados} resultados históricos` +
+        (omitidos > 0 ? ` (se omitieron ${omitidos} filas sin número de nómina).` : ".");
+      document.getElementById("mapeo-forms").style.display = "none";
+      document.getElementById("input-archivo-forms").value = "";
+      cargarResultados();
+    } catch (error) {
+      status.className = "status err";
+      status.textContent = "Error al importar: " + error.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Importar resultados";
     }
   });
 
