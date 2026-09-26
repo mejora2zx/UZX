@@ -1052,10 +1052,11 @@
       const puntos = parseFloat(fila[colPuntaje]) || 0;
       const porcentaje = Math.round((puntos / puntajeMax) * 100);
       const aprobado = porcentaje >= umbral;
+      const fechaTexto = convertirFechaForms(fila[colFecha]).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
       return `
         <tr>
           <td>${fila[colNomina]}</td>
-          <td>${fila[colFecha]}</td>
+          <td>${fechaTexto}</td>
           <td>${puntos}/${puntajeMax}</td>
           <td>${porcentaje}%</td>
           <td><span class="badge ${aprobado ? "aprobado" : "reprobado"}">${aprobado ? "Aprobado" : "No aprobado"}</span></td>
