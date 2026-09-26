@@ -234,6 +234,10 @@
       <option>Corrugado</option>
     </select>
 
+    <label for="input-fecha-limite">Cierra automáticamente el (opcional)</label>
+    <input type="datetime-local" id="input-fecha-limite">
+    <p class="subtitle" style="margin-top:-12px; font-size:0.82rem;">Después de esta fecha y hora, el examen dejará de aceptar respuestas aunque siga "Activo". Déjalo vacío si no quieres que cierre solo.</p>
+
     <div id="preguntas-contenedor"></div>
 
     <button class="btn-secundario" id="btn-agregar-pregunta" type="button">+ Agregar pregunta</button>
@@ -249,10 +253,10 @@
   <div class="card">
     <table id="tabla-examenes">
       <thead>
-        <tr><th>Título</th><th>Categoría</th><th>Preguntas</th><th>Estado</th><th></th></tr>
+        <tr><th>Título</th><th>Categoría</th><th>Preguntas</th><th>Estado</th><th>Cierra</th><th></th></tr>
       </thead>
       <tbody id="tabla-examenes-body">
-        <tr><td colspan="5" class="vacio">Cargando...</td></tr>
+        <tr><td colspan="6" class="vacio">Cargando...</td></tr>
       </tbody>
     </table>
   </div>
@@ -307,7 +311,14 @@
       </div>
     </div>
     <button class="btn-secundario" id="btn-actualizar-resultados" type="button">Actualizar</button>
-    <button class="btn-secundario" id="btn-exportar-excel" type="button" style="margin-bottom:16px;">Descargar Excel</button>
+    <button class="btn-secundario" id="btn-exportar-excel" type="button">Descargar Excel</button>
+    <div style="display:flex; align-items:center; gap:16px; margin: 12px 0 16px;">
+      <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin-bottom:0;">
+        <input type="checkbox" id="chk-auto-actualizar" style="width:auto;">
+        Actualizar automáticamente cada 15s
+      </label>
+      <span style="color:var(--muted); font-size:0.9rem;">Mostrando <strong id="conteo-resultados-total">0</strong> resultado(s)</span>
+    </div>
     <table id="tabla-resultados">
       <thead>
         <tr><th>Nombre</th><th>Nómina</th><th>Examen</th><th>Categoría</th><th>Resultado</th><th>Nivel</th><th>Estado</th><th>Fecha</th><th></th></tr>
@@ -419,6 +430,7 @@
     document.getElementById("input-titulo").value = "";
     document.getElementById("input-umbral").value = 80;
     document.getElementById("input-categoria").value = "Institucionales";
+    document.getElementById("input-fecha-limite").value = "";
     contenedor.innerHTML = "";
     contadorPreguntas = 0;
     agregarBloquePregunta();
@@ -437,6 +449,9 @@
     document.getElementById("input-titulo").value = examen.titulo;
     document.getElementById("input-categoria").value = examen.categoria;
     document.getElementById("input-umbral").value = examen.umbralAprobacion || 80;
+    document.getElementById("input-fecha-limite").value = examen.fechaLimite
+      ? examen.fechaLimite.slice(0, 16)
+      : "";
 
     contenedor.innerHTML = "";
     contadorPreguntas = 0;
@@ -454,6 +469,8 @@
     const titulo = document.getElementById("input-titulo").value.trim();
     const categoria = document.getElementById("input-categoria").value;
     const umbral = parseInt(document.getElementById("input-umbral").value) || 80;
+    const fechaLimiteInput = document.getElementById("input-fecha-limite").value;
+    const fechaLimite = fechaLimiteInput ? new Date(fechaLimiteInput).toISOString() : null;
 
     const bloques = contenedor.querySelectorAll(".pregunta-item");
     if (!titulo || bloques.length === 0) {
@@ -497,6 +514,7 @@
           titulo,
           categoria,
           umbralAprobacion: umbral,
+          fechaLimite,
           preguntas
         });
         status.className = "status ok";
@@ -506,6 +524,7 @@
           titulo,
           categoria,
           umbralAprobacion: umbral,
+          fechaLimite,
           activo: true,
           preguntas,
           creado: firebase.firestore.FieldValue.serverTimestamp()
@@ -527,12 +546,12 @@
   // ======= Listar exámenes existentes con acciones =======
   async function cargarTablaExamenes() {
     const tbody = document.getElementById("tabla-examenes-body");
-    tbody.innerHTML = `<tr><td colspan="5" class="vacio">Cargando...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="vacio">Cargando...</td></tr>`;
 
     const snapshot = await db.collection("examenes").orderBy("creado", "desc").get();
 
     if (snapshot.empty) {
-      tbody.innerHTML = `<tr><td colspan="5" class="vacio">Todavía no hay exámenes creados.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="vacio">Todavía no hay exámenes creados.</td></tr>`;
       return;
     }
 
@@ -542,11 +561,15 @@
       const tr = document.createElement("tr");
       const carpeta = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/") + 1);
       const link = `${window.location.origin}${carpeta}?examen=${doc.id}`;
+      const cierraTexto = data.fechaLimite
+        ? new Date(data.fechaLimite).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
+        : "—";
       tr.innerHTML = `
         <td>${data.titulo}</td>
         <td>${data.categoria}</td>
         <td>${data.preguntas.length}</td>
         <td><span class="badge ${data.activo ? "activo" : "inactivo"}">${data.activo ? "Activo" : "Inactivo"}</span></td>
+        <td style="font-size:0.85rem; color:var(--muted);">${cierraTexto}</td>
         <td>
           <button class="link-accion" data-accion="editar" data-id="${doc.id}">Editar</button>
           <button class="link-accion" data-accion="copiar" data-link="${link}">Copiar link</button>
@@ -644,6 +667,7 @@
       );
     }
     filtradosActual = filtrados;
+    document.getElementById("conteo-resultados-total").textContent = filtrados.length;
 
     if (filtrados.length === 0) {
       tbody.innerHTML = `<tr><td colspan="9" class="vacio">No hay resultados con ese filtro.</td></tr>`;
@@ -714,6 +738,15 @@
   document.getElementById("filtro-examen").addEventListener("change", renderTablaResultados);
   document.getElementById("filtro-busqueda").addEventListener("input", renderTablaResultados);
   document.getElementById("btn-actualizar-resultados").addEventListener("click", cargarResultados);
+
+  let intervaloAutoActualizar = null;
+  document.getElementById("chk-auto-actualizar").addEventListener("change", (e) => {
+    if (e.target.checked) {
+      intervaloAutoActualizar = setInterval(cargarResultados, 15000);
+    } else {
+      clearInterval(intervaloAutoActualizar);
+    }
+  });
 
   document.getElementById("btn-exportar-excel").addEventListener("click", () => {
     if (filtradosActual.length === 0) return;
