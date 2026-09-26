@@ -357,6 +357,14 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
+  // ======= Convierte una fecha ISO (guardada en UTC) al formato que espera un input datetime-local, en hora local =======
+  function isoALocalInput(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   // ======= Escala de niveles usada por los instructores =======
   function obtenerNivel(porcentaje) {
     if (porcentaje >= 91) return { label: "Completo", clase: "completo" };
@@ -449,9 +457,7 @@
     document.getElementById("input-titulo").value = examen.titulo;
     document.getElementById("input-categoria").value = examen.categoria;
     document.getElementById("input-umbral").value = examen.umbralAprobacion || 80;
-    document.getElementById("input-fecha-limite").value = examen.fechaLimite
-      ? examen.fechaLimite.slice(0, 16)
-      : "";
+    document.getElementById("input-fecha-limite").value = isoALocalInput(examen.fechaLimite);
 
     contenedor.innerHTML = "";
     contadorPreguntas = 0;
@@ -561,15 +567,16 @@
       const tr = document.createElement("tr");
       const carpeta = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/") + 1);
       const link = `${window.location.origin}${carpeta}?examen=${doc.id}`;
-      const cierraTexto = data.fechaLimite
-        ? new Date(data.fechaLimite).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
-        : "—";
       tr.innerHTML = `
         <td>${data.titulo}</td>
         <td>${data.categoria}</td>
         <td>${data.preguntas.length}</td>
         <td><span class="badge ${data.activo ? "activo" : "inactivo"}">${data.activo ? "Activo" : "Inactivo"}</span></td>
-        <td style="font-size:0.85rem; color:var(--muted);">${cierraTexto}</td>
+        <td>
+          <input type="datetime-local" class="input-cierre-rapido" data-id="${doc.id}"
+                 value="${isoALocalInput(data.fechaLimite)}"
+                 style="font-size:0.8rem; padding:5px; margin-bottom:0; width:150px;">
+        </td>
         <td>
           <button class="link-accion" data-accion="editar" data-id="${doc.id}">Editar</button>
           <button class="link-accion" data-accion="copiar" data-link="${link}">Copiar link</button>
@@ -582,6 +589,20 @@
 
     tbody.querySelectorAll("[data-accion='editar']").forEach(b => {
       b.addEventListener("click", () => editarExamen(b.dataset.id));
+    });
+
+    tbody.querySelectorAll(".input-cierre-rapido").forEach(input => {
+      input.addEventListener("change", async () => {
+        const nuevaFecha = input.value ? new Date(input.value).toISOString() : null;
+        input.disabled = true;
+        try {
+          await db.collection("examenes").doc(input.dataset.id).update({ fechaLimite: nuevaFecha });
+        } catch (error) {
+          alert("No se pudo guardar la fecha: " + error.message);
+        } finally {
+          input.disabled = false;
+        }
+      });
     });
 
     tbody.querySelectorAll("[data-accion='copiar']").forEach(b => {
