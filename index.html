@@ -137,6 +137,7 @@
   .puntaje-fila { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0; }
 
   .estado-busqueda { font-size: 0.85rem; margin-top: -10px; margin-bottom: 16px; }
+  input[readonly] { background: #F0F1F6; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -149,6 +150,10 @@
 <main id="app">
   <div class="cargando">Cargando...</div>
 </main>
+
+<footer style="text-align:center; padding:24px; color:var(--muted); font-size:0.8rem;">
+  <a href="admin-examenes.html" style="color:var(--muted);">Administrador</a>
+</footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -275,6 +280,11 @@
     }
     const examen = docRef.data();
 
+    if (examen.fechaLimite && new Date() > new Date(examen.fechaLimite)) {
+      app.innerHTML = `<div class="vacio">Este examen ya cerró y ya no acepta respuestas.</div>`;
+      return;
+    }
+
     let preguntasHtml = "";
     examen.preguntas.forEach((p, i) => {
       let opcionesHtml = "";
@@ -303,39 +313,78 @@
         <div class="estado-busqueda" id="estado-busqueda-empleado"></div>
 
         <label for="input-nombre">Nombre completo</label>
-        <input type="text" id="input-nombre" placeholder="Ej. Juan Pérez">
+        <input type="text" id="input-nombre" placeholder="Se completa automáticamente" readonly>
 
         ${preguntasHtml}
 
         <div class="error-msg" id="error-msg" style="display:none;"></div>
-        <button class="primario" id="btn-enviar">Enviar examen</button>
+        <button class="primario" id="btn-enviar" disabled>Enviar examen</button>
       </div>
     `;
 
     let departamentoActual = "";
 
-    document.getElementById("input-nomina").addEventListener("blur", async () => {
-      const nomina = document.getElementById("input-nomina").value.trim();
+    const inputNomina = document.getElementById("input-nomina");
+    const btnEnviar = document.getElementById("btn-enviar");
+
+    // Solo se permiten números en la nómina
+    inputNomina.addEventListener("input", () => {
+      inputNomina.value = inputNomina.value.replace(/\D/g, "");
+    });
+
+    async function yaContestoHoy(nomina) {
+      const snapshot = await db.collection("resultados")
+        .where("examenId", "==", examenId)
+        .where("numeroNomina", "==", nomina)
+        .get();
+      const hoy = new Date();
+      return snapshot.docs.some(doc => {
+        const f = doc.data().fecha;
+        if (!f) return false;
+        const fecha = f.toDate();
+        return fecha.getFullYear() === hoy.getFullYear() &&
+               fecha.getMonth() === hoy.getMonth() &&
+               fecha.getDate() === hoy.getDate();
+      });
+    }
+
+    inputNomina.addEventListener("blur", async () => {
+      const nomina = inputNomina.value.trim();
       const estado = document.getElementById("estado-busqueda-empleado");
+      const nombreInput = document.getElementById("input-nombre");
+
+      btnEnviar.disabled = true;
+      nombreInput.value = "";
+
       if (!nomina) { estado.textContent = ""; return; }
 
       estado.style.color = "var(--muted)";
-      estado.textContent = "Buscando...";
+      estado.textContent = "Verificando...";
       try {
         const empleadoDoc = await db.collection("empleados").doc(nomina).get();
-        if (empleadoDoc.exists) {
-          const emp = empleadoDoc.data();
-          document.getElementById("input-nombre").value = emp.nombre || "";
-          departamentoActual = emp.departamento || "";
-          estado.style.color = "var(--ok)";
-          estado.textContent = `${emp.nombre} · ${emp.departamento}`;
-        } else {
-          departamentoActual = "";
-          estado.style.color = "var(--muted)";
-          estado.textContent = "No encontrado en la base de personal. Captura tu nombre manualmente.";
+        if (!empleadoDoc.exists) {
+          estado.style.color = "var(--err)";
+          estado.textContent = "Número de nómina no encontrado. Verifica que sea correcto.";
+          return;
         }
+
+        const emp = empleadoDoc.data();
+
+        const yaContesto = await yaContestoHoy(nomina);
+        if (yaContesto) {
+          estado.style.color = "var(--err)";
+          estado.textContent = `${emp.nombre}: ya contestaste este examen hoy. Puedes volver a intentarlo mañana.`;
+          return;
+        }
+
+        nombreInput.value = emp.nombre || "";
+        departamentoActual = emp.departamento || "";
+        estado.style.color = "var(--ok)";
+        estado.textContent = `${emp.nombre} · ${emp.departamento}`;
+        btnEnviar.disabled = false;
       } catch (e) {
-        estado.textContent = "";
+        estado.style.color = "var(--err)";
+        estado.textContent = "No se pudo verificar, intenta de nuevo.";
       }
     });
 
