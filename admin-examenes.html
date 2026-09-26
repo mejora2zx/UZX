@@ -188,6 +188,40 @@
   .nivel-badge.basico { background: #F2A600; color: #3A2E00; }
   .nivel-badge.intermedio { background: #FB8C00; }
   .nivel-badge.completo { background: #2E7D32; }
+
+  details.seccion { margin-bottom: 8px; }
+  details.seccion summary {
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 28px 0 12px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+  details.seccion summary::-webkit-details-marker { display: none; }
+  details.seccion summary::before {
+    content: "▸";
+    color: var(--azul);
+    font-size: 0.85rem;
+  }
+  details.seccion[open] summary::before { content: "▾"; }
+  details.seccion summary .contador-seccion {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .tabla-scroll { max-height: 420px; overflow-y: auto; }
+  .tabla-scroll table { margin: 0; }
+  .tabla-scroll thead th {
+    position: sticky;
+    top: 0;
+    background: var(--card);
+    z-index: 1;
+  }
 </style>
 </head>
 <body>
@@ -212,7 +246,8 @@
     <button class="link-accion" id="btn-logout">Cerrar sesión</button>
   </div>
 
-  <h2>Nuevo examen</h2>
+  <details class="seccion" id="seccion-nuevo-examen">
+  <summary>Nuevo examen</summary>
   <div class="card">
     <div class="fila-2">
       <div>
@@ -248,9 +283,12 @@
     </div>
     <div class="status" id="status-guardar"></div>
   </div>
+  </details>
 
-  <h2>Exámenes existentes</h2>
+  <details class="seccion" id="seccion-examenes" open>
+  <summary>Exámenes existentes <span class="contador-seccion" id="contador-examenes"></span></summary>
   <div class="card">
+    <div class="tabla-scroll">
     <table id="tabla-examenes">
       <thead>
         <tr><th>Título</th><th>Categoría</th><th>Preguntas</th><th>Estado</th><th>Cierra</th><th></th></tr>
@@ -259,9 +297,12 @@
         <tr><td colspan="6" class="vacio">Cargando...</td></tr>
       </tbody>
     </table>
+    </div>
   </div>
+  </details>
 
-  <h2>Base de personal (Sistemas)</h2>
+  <details class="seccion" id="seccion-empleados">
+  <summary>Base de personal (Sistemas)</summary>
   <div class="card">
     <p class="subtitle" style="margin-top:-4px;">Sube aquí el archivo de Sistemas (Excel o CSV) para actualizar los datos de nómina, nombre y departamento. Puedes repetir este paso cada vez que te manden un archivo nuevo — se actualiza, no se duplica.</p>
 
@@ -295,8 +336,10 @@
 
     <div class="status" id="status-empleados"></div>
   </div>
+  </details>
 
-  <h2>Importar historial de Forms</h2>
+  <details class="seccion" id="seccion-forms">
+  <summary>Importar historial de Forms</summary>
   <div class="card">
     <p class="subtitle" style="margin-top:-4px;">Sube el Excel exportado de un examen anterior hecho en Forms, para agregar sus resultados al historial. Puedes repetirlo por cada examen viejo que quieras concentrar.</p>
 
@@ -362,8 +405,10 @@
 
     <div class="status" id="status-forms"></div>
   </div>
+  </details>
 
-  <h2>Resultados</h2>
+  <details class="seccion" id="seccion-resultados" open>
+  <summary>Resultados <span class="contador-seccion" id="contador-resultados"></span></summary>
   <div class="card">
     <div class="fila-2">
       <div>
@@ -386,6 +431,7 @@
       </label>
       <span style="color:var(--muted); font-size:0.9rem;">Mostrando <strong id="conteo-resultados-total">0</strong> resultado(s)</span>
     </div>
+    <div class="tabla-scroll">
     <table id="tabla-resultados">
       <thead>
         <tr><th>Nombre</th><th>Nómina</th><th>Examen</th><th>Categoría</th><th>Resultado</th><th>Nivel</th><th>Estado</th><th>Fecha</th><th></th></tr>
@@ -394,7 +440,12 @@
         <tr><td colspan="9" class="vacio">Cargando...</td></tr>
       </tbody>
     </table>
+    </div>
+    <div style="text-align:center; margin-top:12px;">
+      <button class="btn-secundario" id="btn-mostrar-mas-resultados" type="button" style="display:none;">Mostrar más</button>
+    </div>
   </div>
+  </details>
   </div>
 
 </main>
@@ -532,7 +583,8 @@
 
     document.getElementById("btn-guardar-examen").textContent = "Guardar cambios";
     document.getElementById("btn-cancelar-edicion").style.display = "inline-block";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.getElementById("seccion-nuevo-examen").open = true;
+    document.getElementById("seccion-nuevo-examen").scrollIntoView({ behavior: "smooth" });
   }
 
   // ======= Guardar el examen completo en Firestore =======
@@ -622,6 +674,8 @@
     tbody.innerHTML = `<tr><td colspan="6" class="vacio">Cargando...</td></tr>`;
 
     const snapshot = await db.collection("examenes").orderBy("creado", "desc").get();
+
+    document.getElementById("contador-examenes").textContent = `(${snapshot.size})`;
 
     if (snapshot.empty) {
       tbody.innerHTML = `<tr><td colspan="6" class="vacio">Todavía no hay exámenes creados.</td></tr>`;
@@ -738,6 +792,7 @@
   }
 
   let filtradosActual = [];
+  let limiteResultadosVisibles = 30;
 
   function renderTablaResultados() {
     const tbody = document.getElementById("tabla-resultados-body");
@@ -756,14 +811,25 @@
     }
     filtradosActual = filtrados;
     document.getElementById("conteo-resultados-total").textContent = filtrados.length;
+    document.getElementById("contador-resultados").textContent = `(${todosResultados.length})`;
 
     if (filtrados.length === 0) {
       tbody.innerHTML = `<tr><td colspan="9" class="vacio">No hay resultados con ese filtro.</td></tr>`;
+      document.getElementById("btn-mostrar-mas-resultados").style.display = "none";
       return;
     }
 
+    const visibles = filtrados.slice(0, limiteResultadosVisibles);
+    const btnMostrarMas = document.getElementById("btn-mostrar-mas-resultados");
+    if (filtrados.length > limiteResultadosVisibles) {
+      btnMostrarMas.style.display = "inline-block";
+      btnMostrarMas.textContent = `Mostrar más (${filtrados.length - limiteResultadosVisibles} restantes)`;
+    } else {
+      btnMostrarMas.style.display = "none";
+    }
+
     tbody.innerHTML = "";
-    filtrados.forEach((r, idx) => {
+    visibles.forEach((r, idx) => {
       const tr = document.createElement("tr");
       const fechaTexto = r.fecha
         ? r.fecha.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
@@ -823,9 +889,22 @@
     if (e.target.id === "modal-detalle") e.target.style.display = "none";
   });
 
-  document.getElementById("filtro-examen").addEventListener("change", renderTablaResultados);
-  document.getElementById("filtro-busqueda").addEventListener("input", renderTablaResultados);
-  document.getElementById("btn-actualizar-resultados").addEventListener("click", cargarResultados);
+  document.getElementById("filtro-examen").addEventListener("change", () => {
+    limiteResultadosVisibles = 30;
+    renderTablaResultados();
+  });
+  document.getElementById("filtro-busqueda").addEventListener("input", () => {
+    limiteResultadosVisibles = 30;
+    renderTablaResultados();
+  });
+  document.getElementById("btn-mostrar-mas-resultados").addEventListener("click", () => {
+    limiteResultadosVisibles += 30;
+    renderTablaResultados();
+  });
+  document.getElementById("btn-actualizar-resultados").addEventListener("click", () => {
+    limiteResultadosVisibles = 30;
+    cargarResultados();
+  });
 
   let intervaloAutoActualizar = null;
   document.getElementById("chk-auto-actualizar").addEventListener("change", (e) => {
