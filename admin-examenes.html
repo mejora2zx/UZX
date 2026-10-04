@@ -29,11 +29,11 @@
   header {
     background: var(--azul);
     color: white;
-    padding: 18px 24px;
+    padding: 18px 24px 0;
   }
   header .titulo { font-size: 1.1rem; font-weight: 600; }
   header .aviso { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
-  main { max-width: 780px; margin: 0 auto; padding: 24px; }
+  main { padding: 24px; }
   h2 { font-size: 1.1rem; margin: 28px 0 12px; }
   .card {
     background: var(--card);
@@ -43,7 +43,7 @@
     margin-bottom: 16px;
   }
   label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; }
-  input[type="text"], input[type="number"], select {
+  input[type="text"], input[type="number"], input[type="password"], select {
     width: 100%;
     padding: 10px;
     border-radius: 6px;
@@ -189,32 +189,44 @@
   .nivel-badge.intermedio { background: #FB8C00; }
   .nivel-badge.completo { background: #2E7D32; }
 
-  details.seccion { margin-bottom: 8px; }
-  details.seccion summary {
+  /* ===== Pestañas en la zona azul ===== */
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+  .btn-logout {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.45);
+    padding: 6px 14px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 1.1rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn-logout:hover { background: rgba(255,255,255,0.12); }
+  .tabs { display: flex; gap: 2px; overflow-x: auto; }
+  .tabs button {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: rgba(255,255,255,0.78);
+    padding: 10px 16px;
+    font-size: 0.92rem;
     font-weight: 600;
-    margin: 28px 0 12px;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    user-select: none;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
   }
-  details.seccion summary::-webkit-details-marker { display: none; }
-  details.seccion summary::before {
-    content: "▸";
-    color: var(--azul);
-    font-size: 0.85rem;
-  }
-  details.seccion[open] summary::before { content: "▾"; }
-  details.seccion summary .contador-seccion {
-    font-weight: 400;
-    color: var(--muted);
-    font-size: 0.85rem;
-  }
+  .tabs button:hover { color: white; background: rgba(255,255,255,0.08); }
+  .tabs button.activa { color: white; border-bottom-color: white; }
+  .tabs .contador { font-weight: 400; opacity: 0.8; font-size: 0.8rem; margin-left: 5px; }
 
-  .tabla-scroll { max-height: 420px; overflow-y: auto; }
+  .tab-panel { display: none; margin: 0 auto; }
+  .tab-panel.activa { display: block; }
+  .w-md { max-width: 780px; }
+  .w-lg { max-width: 1100px; }
+  .w-xl { max-width: 1400px; }
+
+  .tabla-scroll { max-height: 520px; overflow-y: auto; }
   .tabla-scroll table { margin: 0; }
   .tabla-scroll thead th {
     position: sticky;
@@ -222,32 +234,115 @@
     background: var(--card);
     z-index: 1;
   }
+
+  /* ===== Dashboard ===== */
+  .filtros-barra { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .filtros-barra .campo { flex: 1 1 190px; min-width: 160px; }
+  .filtros-barra select, .filtros-barra input[type="text"] { margin-bottom: 0; }
+  .filtros-barra .btn-secundario { margin-right: 0; }
+  .nota-filtros { font-size: 0.82rem; color: var(--muted); margin: 12px 0 0; }
+  .nota-filtros:empty { display: none; }
+  .leyenda-niveles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: var(--card); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 16px; }
+  .kpi .etiqueta { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  .kpi .valor { font-size: 1.8rem; font-weight: 700; color: var(--azul); line-height: 1.25; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .kpi .valor.naranja { color: var(--naranja); }
+  .kpi .sub { font-size: 0.8rem; color: var(--muted); }
+
+  .graficas-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .graficas-grid { grid-template-columns: 1fr; } }
+  .grafica-card .grafica-titulo { font-weight: 600; margin-bottom: 2px; }
+  .grafica-card .grafica-nota { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; }
+  .chart-box { position: relative; width: 100%; }
+
+  /* ===== Control Maestro ===== */
+  .cm-banda {
+    background: var(--azul);
+    color: white;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    padding: 8px;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.9rem;
+  }
+  .cm-wrap {
+    max-height: 70vh;
+    overflow: auto;
+    border: 1px solid var(--borde);
+    border-radius: 0 0 8px 8px;
+    background: var(--card);
+  }
+  table.cm { border-collapse: separate; border-spacing: 0; font-size: 0.82rem; table-layout: fixed; }
+  table.cm th, table.cm td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--borde);
+    border-right: 1px solid var(--borde);
+    white-space: nowrap;
+    text-align: center;
+    background: var(--card);
+  }
+  table.cm thead th { background: #E9EBF8; color: var(--text); font-weight: 600; position: sticky; z-index: 3; font-size: 0.78rem; }
+  table.cm thead tr.cm-f1 th { top: 0; height: 62px; }
+  table.cm thead tr.cm-f2 th { top: 62px; height: 28px; }
+  table.cm thead th.th-curso { white-space: normal; line-height: 1.2; }
+  table.cm .sticky-1 { position: sticky; left: 0; z-index: 2; }
+  table.cm .sticky-2 { position: sticky; left: 62px; z-index: 2; text-align: left; }
+  table.cm thead th.sticky-1, table.cm thead th.sticky-2 { z-index: 5; }
+  table.cm td.txt-izq { text-align: left; }
+  table.cm td.txt-izq, table.cm td.sticky-2 { overflow: hidden; text-overflow: ellipsis; }
+  table.cm td.fecha { color: var(--muted); font-size: 0.78rem; }
+  table.cm td.calif, table.cm td.prom { font-weight: 700; }
+  table.cm td.c-en-proceso { background: #E53935; color: #fff; }
+  table.cm td.c-basico { background: #F2A600; color: #3A2E00; }
+  table.cm td.c-intermedio { background: #FB8C00; color: #fff; }
+  table.cm td.c-completo { background: #2E7D32; color: #fff; }
+  table.cm tfoot td { position: sticky; z-index: 3; font-weight: 700; background: #F2F3FA; height: 30px; }
+  table.cm tfoot tr.pie-1 td { bottom: 60px; }
+  table.cm tfoot tr.pie-2 td { bottom: 30px; }
+  table.cm tfoot tr.pie-3 td { bottom: 0; }
+  table.cm tfoot td.etiqueta-pie { text-align: right; padding-right: 14px; }
+  table.cm tfoot td.c-en-proceso { background: #E53935; color: #fff; }
+  table.cm tfoot td.c-basico { background: #F2A600; color: #3A2E00; }
+  table.cm tfoot td.c-intermedio { background: #FB8C00; color: #fff; }
+  table.cm tfoot td.c-completo { background: #2E7D32; color: #fff; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="titulo">Administrar exámenes · Zubex</div>
-  <div class="aviso">Solo para uso interno de Mejora Continua — este link no debe compartirse con operadores.</div>
+  <div class="header-top">
+    <div>
+      <div class="titulo">Administrar exámenes · Zubex</div>
+      <div class="aviso">Solo para uso interno de la Universidad Zubex — este link no debe compartirse con operadores.</div>
+    </div>
+    <button class="btn-logout" id="btn-logout" style="display:none;">Cerrar sesión</button>
+  </div>
+  <nav class="tabs" id="tabs-nav" style="display:none;">
+    <button data-tab="nuevo">Nuevo examen</button>
+    <button data-tab="examenes">Exámenes existentes<span class="contador" id="contador-examenes"></span></button>
+    <button data-tab="bases">Bases de datos</button>
+    <button data-tab="resultados">Resultados<span class="contador" id="contador-resultados"></span></button>
+    <button data-tab="dashboard">Dashboard</button>
+    <button data-tab="control">Control Maestro</button>
+  </nav>
 </header>
 
 <main>
 
   <div id="login-box" class="card" style="max-width:340px; margin: 60px auto;">
     <label for="login-password">Contraseña de acceso</label>
-    <input type="text" id="login-password" placeholder="Contraseña" style="-webkit-text-security:disc; text-security:disc;">
+    <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password">
     <div class="status" id="login-status"></div>
     <button class="primario" id="btn-login" style="width:100%;">Entrar</button>
   </div>
 
   <div id="panel-contenido" style="display:none;">
 
-  <div style="text-align:right; margin-bottom:8px;">
-    <button class="link-accion" id="btn-logout">Cerrar sesión</button>
-  </div>
-
-  <details class="seccion" id="seccion-nuevo-examen">
-  <summary>Nuevo examen</summary>
+  <section class="tab-panel w-md" id="tab-nuevo">
+  <h2>Nuevo examen</h2>
   <div class="card">
     <div class="fila-2">
       <div>
@@ -283,10 +378,10 @@
     </div>
     <div class="status" id="status-guardar"></div>
   </div>
-  </details>
+  </section>
 
-  <details class="seccion" id="seccion-examenes" open>
-  <summary>Exámenes existentes <span class="contador-seccion" id="contador-examenes"></span></summary>
+  <section class="tab-panel w-lg" id="tab-examenes">
+  <h2>Exámenes existentes</h2>
   <div class="card">
     <div class="tabla-scroll">
     <table id="tabla-examenes">
@@ -299,18 +394,18 @@
     </table>
     </div>
   </div>
-  </details>
+  </section>
 
-  <details class="seccion" id="seccion-empleados">
-  <summary>Base de personal (Sistemas)</summary>
+  <section class="tab-panel w-md" id="tab-bases">
+  <h2>Base de personal (Sistemas)</h2>
   <div class="card">
-    <p class="subtitle" style="margin-top:-4px;">Sube aquí el archivo de Sistemas (Excel o CSV) para actualizar los datos de nómina, nombre y departamento. Puedes repetir este paso cada vez que te manden un archivo nuevo — se actualiza, no se duplica.</p>
+    <p class="subtitle" style="margin-top:-4px;">Sube aquí el archivo de Sistemas (Excel o CSV) para actualizar los datos de nómina, nombre y departamento. Puedes repetir este paso cada vez que te manden un archivo nuevo — se actualiza, no se duplica. Si el archivo trae la columna Puesto también se guarda: el Dashboard la usa para separar administrativos, operadores y ayudantes.</p>
 
     <label for="input-archivo-empleados">Empleados actualmente en la base: <span id="conteo-empleados">-</span></label>
     <input type="file" id="input-archivo-empleados" accept=".xlsx,.xls,.csv">
 
     <div id="mapeo-columnas" style="display:none; margin-top:16px;">
-      <div class="fila-2" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="fila-2" style="grid-template-columns: 1fr 1fr;">
         <div>
           <label for="col-nomina">Columna: Número de nómina</label>
           <select id="col-nomina"></select>
@@ -320,6 +415,10 @@
           <select id="col-nombre"></select>
         </div>
         <div>
+          <label for="col-puesto">Columna: Puesto (opcional)</label>
+          <select id="col-puesto"></select>
+        </div>
+        <div>
           <label for="col-depto">Columna: Departamento</label>
           <select id="col-depto"></select>
         </div>
@@ -327,7 +426,7 @@
 
       <label style="margin-top:10px;">Vista previa (primeras 5 filas)</label>
       <table id="tabla-preview-empleados">
-        <thead><tr><th>Nómina</th><th>Nombre</th><th>Departamento</th></tr></thead>
+        <thead><tr><th>Nómina</th><th>Nombre</th><th>Puesto</th><th>Departamento</th></tr></thead>
         <tbody id="tabla-preview-empleados-body"></tbody>
       </table>
 
@@ -336,10 +435,8 @@
 
     <div class="status" id="status-empleados"></div>
   </div>
-  </details>
 
-  <details class="seccion" id="seccion-forms">
-  <summary>Importar historial de Forms</summary>
+  <h2>Importar historial de Forms</h2>
   <div class="card">
     <p class="subtitle" style="margin-top:-4px;">Sube el Excel exportado de un examen anterior hecho en Forms, para agregar sus resultados al historial. Puedes repetirlo por cada examen viejo que quieras concentrar.</p>
 
@@ -405,10 +502,10 @@
 
     <div class="status" id="status-forms"></div>
   </div>
-  </details>
+  </section>
 
-  <details class="seccion" id="seccion-resultados" open>
-  <summary>Resultados <span class="contador-seccion" id="contador-resultados"></span></summary>
+  <section class="tab-panel w-lg" id="tab-resultados">
+  <h2>Resultados</h2>
   <div class="card">
     <div class="fila-2">
       <div>
@@ -445,7 +542,99 @@
       <button class="btn-secundario" id="btn-mostrar-mas-resultados" type="button" style="display:none;">Mostrar más</button>
     </div>
   </div>
-  </details>
+  </section>
+
+  <section class="tab-panel w-xl" id="tab-dashboard">
+  <h2>Dashboard</h2>
+  <div class="card">
+    <div class="filtros-barra">
+      <div class="campo">
+        <label for="dash-depto">Departamento</label>
+        <select id="dash-depto"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="dash-examen">Tipo de examen</label>
+        <select id="dash-examen"><option value="">Todos los exámenes</option></select>
+      </div>
+      <div class="campo">
+        <label for="dash-puesto">Tipo de puesto</label>
+        <select id="dash-puesto">
+          <option value="">Todos</option>
+          <option value="administrativo">Administrativos</option>
+          <option value="operador">Operadores</option>
+          <option value="ayudante">Ayudantes</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn-secundario" id="btn-dash-actualizar" type="button">Actualizar datos</button>
+      </div>
+    </div>
+    <p class="nota-filtros" id="dash-nota"></p>
+  </div>
+
+  <div class="kpis" id="dash-kpis"></div>
+
+  <div class="graficas-grid">
+    <div class="card grafica-card">
+      <div class="grafica-titulo">Promedio de calificación por examen</div>
+      <div class="grafica-nota">Azul: promedio de quienes lo presentaron. Morado: promedio considerando a toda la plantilla (quien no lo ha presentado cuenta como 0).</div>
+      <div class="chart-box" style="height:340px;"><canvas id="chart-promedios"></canvas></div>
+    </div>
+    <div class="card grafica-card">
+      <div class="grafica-titulo">Personal que presentó vs. faltante</div>
+      <div class="grafica-nota">Del personal que entra en los filtros elegidos.</div>
+      <div class="chart-box" style="height:340px;"><canvas id="chart-dona"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card grafica-card">
+    <div class="grafica-titulo">Participación por departamento</div>
+    <div class="grafica-nota">Personas que presentaron entre el total registrado en la base de personal de cada departamento.</div>
+    <div class="chart-box" id="box-participacion" style="height:300px;"><canvas id="chart-participacion"></canvas></div>
+  </div>
+  </section>
+
+  <section class="tab-panel w-xl" id="tab-control">
+  <h2>Control Maestro de capacitación</h2>
+  <div class="card">
+    <div class="filtros-barra">
+      <div class="campo">
+        <label for="ctrl-categoria">Categoría de cursos</label>
+        <select id="ctrl-categoria"></select>
+      </div>
+      <div class="campo">
+        <label for="ctrl-depto">Departamento</label>
+        <select id="ctrl-depto"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="ctrl-puesto">Tipo de puesto</label>
+        <select id="ctrl-puesto">
+          <option value="">Todos</option>
+          <option value="administrativo">Administrativos</option>
+          <option value="operador">Operadores</option>
+          <option value="ayudante">Ayudantes</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="ctrl-buscar">Buscar nombre o nómina</label>
+        <input type="text" id="ctrl-buscar" placeholder="Ej. Juan o 3350">
+      </div>
+      <div>
+        <button class="btn-secundario" id="btn-ctrl-actualizar" type="button">Actualizar datos</button>
+      </div>
+    </div>
+    <div class="leyenda-niveles">
+      <span class="nivel-badge en-proceso">En proceso 0-59</span>
+      <span class="nivel-badge basico">Básico 60-80</span>
+      <span class="nivel-badge intermedio">Intermedio 81-90</span>
+      <span class="nivel-badge completo">Completo 91-100</span>
+    </div>
+    <p class="nota-filtros" id="ctrl-nota"></p>
+  </div>
+  <div class="cm-banda" id="ctrl-banda"></div>
+  <div class="cm-wrap"><table class="cm" id="tabla-control"></table></div>
+  </section>
+
   </div>
 
 </main>
@@ -461,6 +650,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <script>
   const firebaseConfig = {
@@ -583,8 +773,8 @@
 
     document.getElementById("btn-guardar-examen").textContent = "Guardar cambios";
     document.getElementById("btn-cancelar-edicion").style.display = "inline-block";
-    document.getElementById("seccion-nuevo-examen").open = true;
-    document.getElementById("seccion-nuevo-examen").scrollIntoView({ behavior: "smooth" });
+    mostrarTab("nuevo");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // ======= Guardar el examen completo en Firestore =======
@@ -956,19 +1146,44 @@
     return encontrada || headers[0];
   }
 
+  // Igual que la anterior, pero devuelve vacío si no encuentra nada (para columnas opcionales)
+  function adivinarColumnaOpcional(headers, palabrasClave) {
+    return headers.find(h => palabrasClave.some(p => h.toLowerCase().includes(p))) || "";
+  }
+
+  // Lee la hoja buscando la fila de encabezados (la primera que tenga "Nombre" en las primeras 15 filas).
+  // Sirve para archivos con títulos o celdas combinadas arriba, como el Control Maestro.
+  function leerHojaConEncabezados(hoja) {
+    const matriz = XLSX.utils.sheet_to_json(hoja, { header: 1, defval: "" });
+    let filaEnc = matriz.findIndex((fila, i) => i < 15 && fila.some(c => normTexto(c).includes("nombre")));
+    if (filaEnc < 0) filaEnc = 0;
+    const usados = {};
+    const headers = (matriz[filaEnc] || []).map((h, i) => {
+      let nombre = String(h).replace(/\s+/g, " ").trim() || ("Columna " + (i + 1));
+      usados[nombre] = (usados[nombre] || 0) + 1;
+      if (usados[nombre] > 1) nombre += " (" + usados[nombre] + ")";
+      return nombre;
+    });
+    return matriz.slice(filaEnc + 1).map(fila => {
+      const o = {};
+      headers.forEach((h, i) => { o[h] = fila[i] === undefined ? "" : fila[i]; });
+      return o;
+    });
+  }
+
   document.getElementById("input-archivo-empleados").addEventListener("change", (evento) => {
     const archivo = evento.target.files[0];
     if (!archivo) return;
 
     const status = document.getElementById("status-empleados");
-    status.style.display = "none";
+    status.className = "status";
 
     const lector = new FileReader();
     lector.onload = (e) => {
       const datos = new Uint8Array(e.target.result);
       const libro = XLSX.read(datos, { type: "array" });
       const hoja = libro.Sheets[libro.SheetNames[0]];
-      filasEmpleados = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+      filasEmpleados = leerHojaConEncabezados(hoja);
 
       if (filasEmpleados.length === 0) {
         status.className = "status err";
@@ -980,15 +1195,18 @@
       const selectNomina = document.getElementById("col-nomina");
       const selectNombre = document.getElementById("col-nombre");
       const selectDepto = document.getElementById("col-depto");
+      const selectPuesto = document.getElementById("col-puesto");
 
-      const opciones = headers.map(h => `<option value="${h}">${h}</option>`).join("");
+      const opciones = headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join("");
       selectNomina.innerHTML = opciones;
       selectNombre.innerHTML = opciones;
       selectDepto.innerHTML = opciones;
+      selectPuesto.innerHTML = `<option value="">(ninguna)</option>` + opciones;
 
-      selectNomina.value = adivinarColumna(headers, ["nomina", "número", "numero", "empleado"]);
+      selectNomina.value = adivinarColumna(headers, ["nomina", "nómina", "número", "numero", "no.", "empleado"]);
       selectNombre.value = adivinarColumna(headers, ["nombre"]);
       selectDepto.value = adivinarColumna(headers, ["depart", "área", "area"]);
+      selectPuesto.value = adivinarColumnaOpcional(headers, ["puesto", "cargo"]);
 
       document.getElementById("mapeo-columnas").style.display = "block";
       actualizarVistaPrevia();
@@ -1000,13 +1218,15 @@
     const colNomina = document.getElementById("col-nomina").value;
     const colNombre = document.getElementById("col-nombre").value;
     const colDepto = document.getElementById("col-depto").value;
+    const colPuesto = document.getElementById("col-puesto").value;
 
     const tbody = document.getElementById("tabla-preview-empleados-body");
-    tbody.innerHTML = filasEmpleados.slice(0, 5).map(fila => `
+    tbody.innerHTML = filasEmpleados.filter(f => String(f[colNomina]).trim() && String(f[colNombre]).trim()).slice(0, 5).map(fila => `
       <tr>
-        <td>${fila[colNomina]}</td>
-        <td>${fila[colNombre]}</td>
-        <td>${fila[colDepto]}</td>
+        <td>${esc(fila[colNomina])}</td>
+        <td>${esc(fila[colNombre])}</td>
+        <td>${colPuesto ? esc(fila[colPuesto]) : "—"}</td>
+        <td>${esc(fila[colDepto])}</td>
       </tr>
     `).join("");
   }
@@ -1014,6 +1234,7 @@
   document.getElementById("col-nomina").addEventListener("change", actualizarVistaPrevia);
   document.getElementById("col-nombre").addEventListener("change", actualizarVistaPrevia);
   document.getElementById("col-depto").addEventListener("change", actualizarVistaPrevia);
+  document.getElementById("col-puesto").addEventListener("change", actualizarVistaPrevia);
 
   document.getElementById("btn-subir-empleados").addEventListener("click", async () => {
     const status = document.getElementById("status-empleados");
@@ -1021,14 +1242,20 @@
     const colNomina = document.getElementById("col-nomina").value;
     const colNombre = document.getElementById("col-nombre").value;
     const colDepto = document.getElementById("col-depto").value;
+    const colPuesto = document.getElementById("col-puesto").value;
 
+    // Se omiten filas sin nómina o sin nombre (por ejemplo, renglones de totales al final de un Excel)
     const registros = filasEmpleados
-      .map(fila => ({
-        numeroNomina: String(fila[colNomina]).trim(),
-        nombre: String(fila[colNombre]).trim(),
-        departamento: String(fila[colDepto]).trim()
-      }))
-      .filter(r => r.numeroNomina);
+      .map(fila => {
+        const r = {
+          numeroNomina: String(fila[colNomina]).trim(),
+          nombre: String(fila[colNombre]).trim(),
+          departamento: String(fila[colDepto]).trim()
+        };
+        if (colPuesto) r.puesto = String(fila[colPuesto]).trim();
+        return r;
+      })
+      .filter(r => r.numeroNomina && r.nombre);
 
     if (registros.length === 0) {
       status.className = "status err";
@@ -1046,12 +1273,14 @@
         const batch = db.batch();
         lote.forEach(r => {
           const ref = db.collection("empleados").doc(r.numeroNomina);
-          batch.set(ref, {
+          const datosEmpleado = {
             numeroNomina: r.numeroNomina,
             nombre: r.nombre,
             departamento: r.departamento,
             actualizado: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
+          };
+          if (r.puesto !== undefined) datosEmpleado.puesto = r.puesto;
+          batch.set(ref, datosEmpleado, { merge: true });
         });
         await batch.commit();
         subidos += lote.length;
@@ -1060,6 +1289,7 @@
 
       status.className = "status ok";
       status.textContent = `Listo: se actualizaron ${subidos} empleados.`;
+      promesaAnalisis = null; // para que el Dashboard y el Control Maestro vuelvan a leer la base
       document.getElementById("mapeo-columnas").style.display = "none";
       document.getElementById("input-archivo-empleados").value = "";
       actualizarConteoEmpleados();
@@ -1080,7 +1310,7 @@
     if (!archivo) return;
 
     const status = document.getElementById("status-forms");
-    status.style.display = "none";
+    status.className = "status";
 
     const lector = new FileReader();
     lector.onload = (e) => {
@@ -1248,6 +1478,601 @@
     }
   });
 
+  // ======================================================================
+  // PESTAÑAS
+  // ======================================================================
+  const TABS = ["nuevo", "examenes", "bases", "resultados", "dashboard", "control"];
+
+  function mostrarTab(id) {
+    if (!TABS.includes(id)) id = "examenes";
+    TABS.forEach(t => document.getElementById("tab-" + t).classList.toggle("activa", t === id));
+    document.querySelectorAll("#tabs-nav button").forEach(b => b.classList.toggle("activa", b.dataset.tab === id));
+    const botonActivo = document.querySelector("#tabs-nav button.activa");
+    if (botonActivo && botonActivo.scrollIntoView) botonActivo.scrollIntoView({ inline: "center", block: "nearest" });
+    try { history.replaceState(null, "", "#" + id); } catch (e) { /* no pasa nada si el navegador no lo permite */ }
+    if (id === "dashboard") prepararDashboard();
+    if (id === "control") prepararControlMaestro();
+  }
+
+  document.querySelectorAll("#tabs-nav button").forEach(b => {
+    b.addEventListener("click", () => mostrarTab(b.dataset.tab));
+  });
+
+  // ======================================================================
+  // APOYO PARA DASHBOARD Y CONTROL MAESTRO
+  // ======================================================================
+  const CATEGORIAS = ["Institucionales", "Extrusión", "Impresión", "Conversión", "Corrugado"];
+
+  let empleadosAnalisis = [];
+  let examenesAnalisis = [];
+  let promesaAnalisis = null;
+
+  function esc(texto) {
+    return String(texto == null ? "" : texto)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // Quita acentos, mayúsculas y espacios de sobra para poder comparar textos
+  function normTexto(s) {
+    return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().replace(/\s+/g, " ").trim();
+  }
+
+  // 0123 y 123 se tratan como la misma nómina
+  function normNomina(s) {
+    const t = String(s == null ? "" : s).trim();
+    return /^\d+$/.test(t) ? String(parseInt(t, 10)) : t.toUpperCase();
+  }
+
+  // Administrativo = todo puesto que no diga "operador" ni "ayudante"
+  function tipoPuesto(puesto) {
+    const p = normTexto(puesto);
+    if (!p) return "sin-puesto";
+    if (p.includes("ayudante")) return "ayudante";
+    if (p.includes("operador")) return "operador";
+    return "administrativo";
+  }
+
+  // Los promedios se cortan a un decimal (sin redondear hacia arriba) para que
+  // un 80.6 no se vea como 81 y cambie de nivel.
+  function truncar1(n) { return Math.floor(n * 10 + 1e-9) / 10; }
+  function fmtProm(n) { return String(truncar1(n)); }
+  function nivelDePromedio(n) { return obtenerNivel(Math.floor(n + 1e-9)); }
+  function fmtPct(n) { return (Math.round(n * 10) / 10) + "%"; }
+  function promedioDe(lista) { return lista.reduce((a, b) => a + b, 0) / lista.length; }
+
+  function fmtFecha(d) {
+    if (!d) return "";
+    const p = n => String(n).padStart(2, "0");
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+  }
+
+  function cargarDatosAnalisis(forzar) {
+    if (promesaAnalisis && !forzar) return promesaAnalisis;
+    promesaAnalisis = (async () => {
+      const [snapEmp, snapEx] = await Promise.all([
+        db.collection("empleados").get(),
+        db.collection("examenes").get()
+      ]);
+      empleadosAnalisis = snapEmp.docs.map(d => {
+        const e = d.data();
+        return {
+          numeroNomina: String(e.numeroNomina != null ? e.numeroNomina : d.id),
+          nombre: e.nombre || "",
+          departamento: String(e.departamento || "").trim(),
+          puesto: String(e.puesto || "").trim()
+        };
+      });
+      examenesAnalisis = snapEx.docs.map(d => {
+        const e = d.data();
+        return { titulo: e.titulo || "", categoria: e.categoria || "", creado: e.creado ? e.creado.toDate() : null };
+      }).sort((a, b) => (a.creado || 0) - (b.creado || 0));
+      await cargarResultados();
+    })().catch(err => { promesaAnalisis = null; throw err; });
+    return promesaAnalisis;
+  }
+
+  // Lista de exámenes: los dados de alta en la plataforma más los que solo existen en el historial importado.
+  // Dos exámenes con el mismo título (sin importar acentos o mayúsculas) cuentan como el mismo.
+  function construirCatalogoExamenes() {
+    const mapa = new Map();
+    examenesAnalisis.forEach(e => {
+      const clave = normTexto(e.titulo);
+      if (clave && !mapa.has(clave)) mapa.set(clave, { clave, titulo: e.titulo, categoria: e.categoria || "Sin categoría" });
+    });
+    const extras = new Map();
+    todosResultados.forEach(r => {
+      const clave = normTexto(r.examenTitulo);
+      if (clave && !mapa.has(clave) && !extras.has(clave)) {
+        extras.set(clave, { clave, titulo: r.examenTitulo, categoria: r.categoria || "Sin categoría" });
+      }
+    });
+    [...extras.values()].sort((a, b) => a.titulo.localeCompare(b.titulo, "es")).forEach(x => mapa.set(x.clave, x));
+    return [...mapa.values()];
+  }
+
+  function categoriasDelCatalogo(catalogo) {
+    const presentes = [...new Set(catalogo.map(e => e.categoria))];
+    return presentes.sort((a, b) => {
+      const ia = CATEGORIAS.indexOf(a), ib = CATEGORIAS.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, "es");
+    });
+  }
+
+  // Una calificación por persona y examen: la del intento más reciente
+  function construirVigentes() {
+    const mapa = new Map();
+    todosResultados.forEach(r => {
+      const nom = normNomina(r.numeroNomina), ek = normTexto(r.examenTitulo);
+      if (!nom || !ek || typeof r.porcentaje !== "number" || isNaN(r.porcentaje)) return;
+      const k = nom + "|" + ek;
+      const previo = mapa.get(k);
+      if (!previo || (r.fecha || 0) > (previo.fecha || 0)) mapa.set(k, r);
+    });
+    return mapa;
+  }
+
+  // "Básicos de Calidad - Impresión" y "Básicos de Calidad - General" son variantes del mismo curso "Básicos de Calidad".
+  // El nombre del curso es lo que va antes de " - " (espacio, guion, espacio).
+  function cursoBase(titulo) {
+    return String(titulo || "").split(/\s+[-–—]\s+/)[0].trim();
+  }
+
+  // Une los exámenes que son variantes de un mismo curso (dentro de la misma categoría)
+  function construirCursos(catalogo) {
+    const mapa = new Map();
+    catalogo.forEach(ex => {
+      const base = cursoBase(ex.titulo) || ex.titulo;
+      const clave = ex.categoria + "|" + normTexto(base);
+      if (!mapa.has(clave)) mapa.set(clave, { clave, titulo: base, categoria: ex.categoria, variantes: [] });
+      mapa.get(clave).variantes.push(ex);
+    });
+    return [...mapa.values()].map(c => ({ ...c, miembros: c.variantes.map(v => v.clave) }));
+  }
+
+  // Resultado de una persona en un curso: si presentó más de una variante, cuenta la más reciente
+  function resultadoDeUnidad(vigentes, nom, unidad) {
+    let mejor = null;
+    unidad.miembros.forEach(ck => {
+      const r = vigentes.get(nom + "|" + ck);
+      if (r && (!mejor || (r.fecha || 0) > (mejor.fecha || 0))) mejor = r;
+    });
+    return mejor;
+  }
+
+  function filtrarPlantilla(depto, tipo, texto) {
+    const t = normTexto(texto);
+    return empleadosAnalisis.filter(e =>
+      (!depto || e.departamento === depto) &&
+      (!tipo || tipoPuesto(e.puesto) === tipo) &&
+      (!t || normTexto(e.nombre).includes(t) || normNomina(e.numeroNomina).includes(t))
+    );
+  }
+
+  function poblarFiltrosAnalisis() {
+    const catalogo = construirCatalogoExamenes();
+    const departamentos = [...new Set(empleadosAnalisis.map(e => e.departamento).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "es"));
+    const hayPuestos = empleadosAnalisis.some(e => e.puesto);
+
+    ["dash-depto", "ctrl-depto"].forEach(id => {
+      const sel = document.getElementById(id);
+      const previo = sel.value;
+      sel.innerHTML = `<option value="">Todos</option>` +
+        departamentos.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("");
+      sel.value = departamentos.includes(previo) ? previo : "";
+    });
+
+    ["dash-puesto", "ctrl-puesto"].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.disabled = !hayPuestos;
+      if (!hayPuestos) sel.value = "";
+      sel.title = hayPuestos ? "" : "Tu base de personal todavía no incluye la columna Puesto";
+    });
+
+    // Tipo de examen: todos, una categoría completa, un curso (con todas sus variantes) o una variante en específico
+    const selEx = document.getElementById("dash-examen");
+    const previoEx = selEx.value;
+    const cursosCat = construirCursos(catalogo);
+    let opcionesEx = `<option value="">Todos los exámenes</option>`;
+    categoriasDelCatalogo(catalogo).forEach(cat => {
+      opcionesEx += `<optgroup label="${esc(cat)}"><option value="cat:${esc(cat)}">Todos los de ${esc(cat)}</option>`;
+      cursosCat.filter(c => c.categoria === cat).forEach(c => {
+        const conVariantes = c.variantes.length > 1;
+        opcionesEx += `<option value="cur:${esc(c.clave)}">${esc(c.titulo)}${conVariantes ? " (todas las variantes)" : ""}</option>`;
+        if (conVariantes) {
+          c.variantes.forEach(v => { opcionesEx += `<option value="ex:${esc(v.clave)}">&nbsp;&nbsp;&nbsp;↳ ${esc(v.titulo)}</option>`; });
+        }
+      });
+      opcionesEx += `</optgroup>`;
+    });
+    selEx.innerHTML = opcionesEx;
+    selEx.value = [...selEx.options].some(o => o.value === previoEx) ? previoEx : "";
+
+    // Categoría del Control Maestro
+    const selCat = document.getElementById("ctrl-categoria");
+    const previoCat = selCat.value;
+    const cats = categoriasDelCatalogo(catalogo);
+    selCat.innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    selCat.value = cats.includes(previoCat) ? previoCat : (cats.includes("Institucionales") ? "Institucionales" : (cats[0] || ""));
+  }
+
+  function nivelBadgeHtml(prom) {
+    const nv = nivelDePromedio(prom);
+    return `<span class="nivel-badge ${nv.clase}">${nv.label}</span>`;
+  }
+
+  // Plugins pequeños de Chart.js: números sobre las barras y texto al centro de la dona
+  const pluginEtiquetas = {
+    id: "etiquetasValor",
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = "600 11px 'Segoe UI', Arial, sans-serif";
+      ctx.fillStyle = "#1A1D29";
+      chart.data.datasets.forEach((ds, i) => {
+        const meta = chart.getDatasetMeta(i);
+        if (meta.hidden) return;
+        meta.data.forEach((barra, j) => {
+          const v = ds.data[j];
+          if (v === null || v === undefined) return;
+          const texto = ds.etiquetas ? ds.etiquetas[j] : String(v);
+          if (chart.options.indexAxis === "y") {
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(texto, barra.x + 6, barra.y);
+          } else {
+            ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+            ctx.fillText(texto, barra.x, barra.y - 4);
+          }
+        });
+      });
+      ctx.restore();
+    }
+  };
+
+  const pluginCentro = {
+    id: "textoCentro",
+    afterDraw(chart) {
+      const t = chart.options.plugins.textoCentro;
+      if (!t || !t.linea1) return;
+      const { ctx, chartArea } = chart;
+      const cx = (chartArea.left + chartArea.right) / 2;
+      const cy = (chartArea.top + chartArea.bottom) / 2;
+      ctx.save();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "#0D18A8"; ctx.font = "700 26px 'Segoe UI', Arial, sans-serif";
+      ctx.fillText(t.linea1, cx, cy - 8);
+      ctx.fillStyle = "#6B7080"; ctx.font = "12px 'Segoe UI', Arial, sans-serif";
+      ctx.fillText(t.linea2, cx, cy + 16);
+      ctx.restore();
+    }
+  };
+
+  function dividirEtiqueta(texto, max) {
+    const lineas = []; let actual = "";
+    String(texto).split(" ").forEach(p => {
+      if ((actual + " " + p).trim().length > max && actual) { lineas.push(actual); actual = p; }
+      else actual = (actual + " " + p).trim();
+    });
+    if (actual) lineas.push(actual);
+    return lineas;
+  }
+
+  // ======================================================================
+  // DASHBOARD
+  // ======================================================================
+  let chartPromedios = null, chartDona = null, chartParticipacion = null;
+
+  async function prepararDashboard() {
+    const nota = document.getElementById("dash-nota");
+    if (!promesaAnalisis) {
+      nota.textContent = "Cargando datos...";
+      try {
+        await cargarDatosAnalisis();
+        poblarFiltrosAnalisis();
+      } catch (e) {
+        nota.textContent = "No se pudieron cargar los datos: " + e.message;
+        return;
+      }
+    }
+    renderDashboard();
+  }
+
+  function renderDashboard() {
+    const depto = document.getElementById("dash-depto").value;
+    const tipo = document.getElementById("dash-puesto").value;
+    const sel = document.getElementById("dash-examen").value;
+
+    const catalogo = construirCatalogoExamenes();
+    const cursos = construirCursos(catalogo);
+    let alcance = cursos;
+    if (sel.startsWith("cat:")) alcance = cursos.filter(c => c.categoria === sel.slice(4));
+    else if (sel.startsWith("cur:")) alcance = cursos.filter(c => c.clave === sel.slice(4));
+    else if (sel.startsWith("ex:")) {
+      alcance = catalogo.filter(e => e.clave === sel.slice(3))
+        .map(e => ({ clave: e.clave, titulo: e.titulo, categoria: e.categoria, variantes: [e], miembros: [e.clave] }));
+    }
+
+    const vigentes = construirVigentes();
+    const plantilla = filtrarPlantilla(depto, tipo, "");
+    const total = plantilla.length;
+
+    const porExamen = alcance.map(ex => ({ ex, n: 0, suma: 0 }));
+    const porDepto = new Map();
+    let presentaron = 0, sumaProm = 0;
+
+    plantilla.forEach(emp => {
+      const nom = normNomina(emp.numeroNomina);
+      const notas = [];
+      porExamen.forEach(pe => {
+        const r = resultadoDeUnidad(vigentes, nom, pe.ex);
+        if (r) { notas.push(r.porcentaje); pe.n++; pe.suma += r.porcentaje; }
+      });
+      const d = emp.departamento || "Sin departamento";
+      if (!porDepto.has(d)) porDepto.set(d, { total: 0, presentaron: 0 });
+      const pd = porDepto.get(d);
+      pd.total++;
+      if (notas.length) { presentaron++; pd.presentaron++; sumaProm += promedioDe(notas); }
+    });
+
+    const faltan = total - presentaron;
+    const pctPres = total ? (presentaron / total) * 100 : 0;
+    const pctFalta = total ? (faltan / total) * 100 : 0;
+    const promPresentaron = presentaron ? sumaProm / presentaron : null;
+    const promPlantilla = total ? sumaProm / total : null;
+
+    // Resultados de personas que no están en la base de personal: no se pueden asignar a un departamento ni a un puesto
+    const nominasBase = new Set(empleadosAnalisis.map(e => normNomina(e.numeroNomina)));
+    const clavesAlcance = new Set(alcance.flatMap(u => u.miembros));
+    const nominasSinBase = new Set();
+    vigentes.forEach((r, k) => {
+      const i = k.indexOf("|");
+      if (clavesAlcance.has(k.slice(i + 1)) && !nominasBase.has(k.slice(0, i))) nominasSinBase.add(k.slice(0, i));
+    });
+    const sinBase = nominasSinBase.size;
+
+    const partesNota = ["Cada persona cuenta una vez por curso (su resultado más reciente). Los exámenes con variantes, como «Básicos de Calidad - Impresión», se unen en un solo curso. Si eliges varios cursos, se promedian los que cada persona haya presentado."];
+    if (sinBase > 0) partesNota.push(`${sinBase} número(s) de nómina con resultados no están en la base de personal y no se incluyen aquí.`);
+    document.getElementById("dash-nota").textContent = partesNota.join(" ");
+
+    document.getElementById("dash-kpis").innerHTML = `
+      <div class="kpi"><div class="etiqueta">Personal en el filtro</div><div class="valor">${total}</div><div class="sub">Registrados en la base de personal</div></div>
+      <div class="kpi"><div class="etiqueta">Ya presentaron</div><div class="valor">${presentaron}</div><div class="sub">${fmtPct(pctPres)} de la plantilla</div></div>
+      <div class="kpi"><div class="etiqueta">Faltan por presentar</div><div class="valor naranja">${faltan}</div><div class="sub">${fmtPct(pctFalta)} de la plantilla</div></div>
+      <div class="kpi"><div class="etiqueta">Promedio de quienes presentaron</div><div class="valor">${promPresentaron === null ? "—" : fmtProm(promPresentaron) + nivelBadgeHtml(promPresentaron)}</div><div class="sub">Solo cuenta a quienes ya lo hicieron</div></div>
+      <div class="kpi"><div class="etiqueta">Promedio con toda la plantilla</div><div class="valor">${promPlantilla === null ? "—" : fmtProm(promPlantilla) + nivelBadgeHtml(promPlantilla)}</div><div class="sub">Quien no ha presentado cuenta como 0</div></div>
+    `;
+
+    // --- Gráfica 1: promedio por examen
+    if (chartPromedios) chartPromedios.destroy();
+    const etiquetasEx = porExamen.map(pe => dividirEtiqueta(pe.ex.titulo, 20));
+    const datosPres = porExamen.map(pe => pe.n ? truncar1(pe.suma / pe.n) : null);
+    const datosPlant = porExamen.map(pe => total ? truncar1(pe.suma / total) : 0);
+    chartPromedios = new Chart(document.getElementById("chart-promedios"), {
+      type: "bar",
+      data: {
+        labels: etiquetasEx,
+        datasets: [
+          {
+            label: "Promedio de quienes presentaron", data: datosPres, backgroundColor: "#0D18A8",
+            detalles: porExamen.map(pe => pe.n ? `Quienes presentaron: ${fmtProm(pe.suma / pe.n)} (${pe.n} persona${pe.n === 1 ? "" : "s"})` : "Nadie lo ha presentado"),
+            etiquetas: datosPres.map(v => v === null ? "" : String(v))
+          },
+          {
+            label: "Promedio con toda la plantilla", data: datosPlant, backgroundColor: "#9631F7",
+            detalles: porExamen.map(pe => `Toda la plantilla: ${total ? fmtProm(pe.suma / total) : 0} (${total} persona${total === 1 ? "" : "s"})`),
+            etiquetas: datosPlant.map(v => String(v))
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 18 } },
+        scales: { y: { min: 0, max: 100 } },
+        plugins: {
+          legend: { position: "bottom" },
+          tooltip: { callbacks: { label: c => c.dataset.detalles[c.dataIndex] } }
+        }
+      },
+      plugins: [pluginEtiquetas]
+    });
+
+    // --- Gráfica 2: dona de presentaron vs. faltan
+    if (chartDona) chartDona.destroy();
+    chartDona = new Chart(document.getElementById("chart-dona"), {
+      type: "doughnut",
+      data: {
+        labels: [`Presentaron (${presentaron})`, `Faltan (${faltan})`],
+        datasets: [{ data: [presentaron, faltan], backgroundColor: ["#0D18A8", "#FF4E00"], borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "62%",
+        plugins: {
+          legend: { position: "bottom" },
+          textoCentro: { linea1: fmtPct(pctPres), linea2: "participación" }
+        }
+      },
+      plugins: [pluginCentro]
+    });
+
+    // --- Gráfica 3: participación por departamento
+    if (chartParticipacion) chartParticipacion.destroy();
+    const filasDepto = [...porDepto.entries()]
+      .map(([nombre, v]) => ({ nombre, ...v, pct: v.total ? (v.presentaron / v.total) * 100 : 0 }))
+      .sort((a, b) => b.pct - a.pct || a.nombre.localeCompare(b.nombre, "es"));
+    document.getElementById("box-participacion").style.height = Math.max(160, filasDepto.length * 34 + 50) + "px";
+    chartParticipacion = new Chart(document.getElementById("chart-participacion"), {
+      type: "bar",
+      data: {
+        labels: filasDepto.map(f => f.nombre),
+        datasets: [{
+          label: "Participación", data: filasDepto.map(f => Math.round(f.pct * 10) / 10), backgroundColor: "#0D18A8",
+          etiquetas: filasDepto.map(f => `${f.presentaron} de ${f.total} · ${fmtPct(f.pct)}`)
+        }]
+      },
+      options: {
+        indexAxis: "y", responsive: true, maintainAspectRatio: false,
+        layout: { padding: { right: 110 } },
+        scales: { x: { min: 0, max: 100, ticks: { callback: v => v + "%" } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => c.dataset.etiquetas[c.dataIndex] } }
+        }
+      },
+      plugins: [pluginEtiquetas]
+    });
+  }
+
+  ["dash-depto", "dash-examen", "dash-puesto"].forEach(id => {
+    document.getElementById(id).addEventListener("change", renderDashboard);
+  });
+  document.getElementById("btn-dash-actualizar").addEventListener("click", async () => {
+    const nota = document.getElementById("dash-nota");
+    nota.textContent = "Actualizando datos...";
+    try {
+      await cargarDatosAnalisis(true);
+      poblarFiltrosAnalisis();
+      renderDashboard();
+    } catch (e) {
+      nota.textContent = "No se pudieron actualizar los datos: " + e.message;
+    }
+  });
+
+  // ======================================================================
+  // CONTROL MAESTRO
+  // ======================================================================
+  async function prepararControlMaestro() {
+    const nota = document.getElementById("ctrl-nota");
+    if (!promesaAnalisis) {
+      nota.textContent = "Cargando datos...";
+      try {
+        await cargarDatosAnalisis();
+        poblarFiltrosAnalisis();
+      } catch (e) {
+        nota.textContent = "No se pudieron cargar los datos: " + e.message;
+        return;
+      }
+    }
+    renderControlMaestro();
+  }
+
+  function renderControlMaestro() {
+    const cat = document.getElementById("ctrl-categoria").value;
+    const depto = document.getElementById("ctrl-depto").value;
+    const tipo = document.getElementById("ctrl-puesto").value;
+    const texto = document.getElementById("ctrl-buscar").value;
+
+    // Una columna por curso; las variantes del mismo curso comparten columna
+    const catalogo = construirCursos(construirCatalogoExamenes().filter(e => e.categoria === cat));
+    const vigentes = construirVigentes();
+    const mostrarPuesto = empleadosAnalisis.some(e => e.puesto);
+
+    document.getElementById("ctrl-banda").textContent = cat ? "CURSOS " + cat.toUpperCase() : "";
+    const tabla = document.getElementById("tabla-control");
+    const nota = document.getElementById("ctrl-nota");
+
+    if (catalogo.length === 0) {
+      tabla.innerHTML = `<tbody><tr><td style="padding:30px;">No hay exámenes en esta categoría todavía.</td></tr></tbody>`;
+      nota.textContent = "";
+      return;
+    }
+
+    const plantilla = filtrarPlantilla(depto, tipo, texto).sort((a, b) => {
+      const na = parseInt(a.numeroNomina, 10), nb = parseInt(b.numeroNomina, 10);
+      if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+      return a.nombre.localeCompare(b.nombre, "es");
+    });
+    const N = plantilla.length;
+
+    // Anchos fijos por columna (el texto largo se corta con "..." y se ve completo al pasar el mouse)
+    const anchos = [62, 250].concat(mostrarPuesto ? [230] : [], [170]);
+    catalogo.forEach(() => anchos.push(88, 58));
+    anchos.push(84);
+    tabla.style.width = anchos.reduce((a, b) => a + b, 0) + "px";
+    const colgroup = "<colgroup>" + anchos.map(w => `<col style="width:${w}px">`).join("") + "</colgroup>";
+
+    let cabecera = `${colgroup}<thead><tr class="cm-f1">
+      <th rowspan="2" class="sticky-1">No.</th>
+      <th rowspan="2" class="sticky-2">Nombre</th>
+      ${mostrarPuesto ? `<th rowspan="2">Puesto</th>` : ""}
+      <th rowspan="2">Departamento</th>`;
+    catalogo.forEach(ex => {
+      const detalle = ex.variantes.length > 1 ? "Variantes: " + ex.variantes.map(v => v.titulo).join(" · ") : ex.titulo;
+      cabecera += `<th colspan="2" class="th-curso" title="${esc(detalle)}">${esc(ex.titulo)}</th>`;
+    });
+    cabecera += `<th rowspan="2">Promedio</th></tr><tr class="cm-f2">`;
+    catalogo.forEach(() => { cabecera += `<th>Fecha</th><th>Calif.</th>`; });
+    cabecera += `</tr></thead>`;
+
+    const cols = catalogo.map(() => ({ n: 0, suma: 0 }));
+    let sumaProm = 0, nProm = 0;
+    let cuerpo = "<tbody>";
+    plantilla.forEach(emp => {
+      const nom = normNomina(emp.numeroNomina);
+      const notas = [];
+      let celdas = "";
+      catalogo.forEach((ex, i) => {
+        const r = resultadoDeUnidad(vigentes, nom, ex);
+        if (r) {
+          const nv = obtenerNivel(r.porcentaje);
+          celdas += `<td class="fecha">${fmtFecha(r.fecha)}</td><td class="calif c-${nv.clase}" title="${esc(nv.label + " · " + r.examenTitulo)}">${r.porcentaje}</td>`;
+          notas.push(r.porcentaje); cols[i].n++; cols[i].suma += r.porcentaje;
+        } else {
+          celdas += `<td class="fecha"></td><td class="calif"></td>`;
+        }
+      });
+      // Suma de calificaciones entre TODOS los exámenes de la categoría (lo no presentado cuenta como 0), igual que el Excel.
+      // Quien no ha presentado ninguno queda en 0.
+      const pPersona = notas.reduce((a, b) => a + b, 0) / catalogo.length, nvPersona = nivelDePromedio(pPersona);
+      const celdaProm = `<td class="prom c-${nvPersona.clase}" title="${nvPersona.label} · presentó ${notas.length} de ${catalogo.length}">${fmtProm(pPersona)}</td>`;
+      sumaProm += pPersona;
+      if (notas.length) nProm++;
+      cuerpo += `<tr>
+        <td class="sticky-1">${esc(emp.numeroNomina)}</td>
+        <td class="sticky-2" title="${esc(emp.nombre)}">${esc(emp.nombre)}</td>
+        ${mostrarPuesto ? `<td class="txt-izq" title="${esc(emp.puesto)}">${esc(emp.puesto)}</td>` : ""}
+        <td class="txt-izq" title="${esc(emp.departamento)}">${esc(emp.departamento)}</td>
+        ${celdas}${celdaProm}</tr>`;
+    });
+    if (N === 0) cuerpo += `<tr><td colspan="${(mostrarPuesto ? 4 : 3) + catalogo.length * 2 + 1}" style="padding:30px;">No hay personal con esos filtros.</td></tr>`;
+    cuerpo += "</tbody>";
+
+    // Pie: cuántos presentaron, % de participación y promedio (por examen y general)
+    const span = mostrarPuesto ? 4 : 3;
+    const celdaPromPie = (n, suma) => {
+      if (!n) return `<td colspan="2"></td>`;
+      const p = suma / n, nv = nivelDePromedio(p);
+      return `<td colspan="2" class="c-${nv.clase}">${fmtProm(p)}</td>`;
+    };
+    let pie = `<tfoot>
+      <tr class="pie-1"><td colspan="${span}" class="etiqueta-pie">Presentaron</td>${cols.map(c => `<td colspan="2">${c.n} de ${N}</td>`).join("")}<td>${nProm} de ${N}</td></tr>
+      <tr class="pie-2"><td colspan="${span}" class="etiqueta-pie">Participación</td>${cols.map(c => `<td colspan="2">${N ? fmtPct((c.n / N) * 100) : "—"}</td>`).join("")}<td>${N ? fmtPct((nProm / N) * 100) : "—"}</td></tr>
+      <tr class="pie-3"><td colspan="${span}" class="etiqueta-pie">Promedio</td>${cols.map(c => celdaPromPie(c.n, c.suma)).join("")}${N ? (() => { const p = sumaProm / N, nv = nivelDePromedio(p); return `<td class="c-${nv.clase}">${fmtProm(p)}</td>`; })() : "<td></td>"}</tr>
+    </tfoot>`;
+
+    tabla.innerHTML = cabecera + cuerpo + pie;
+    const E = catalogo.length;
+    nota.textContent = `${N} persona(s) en la tabla. Se muestra el intento más reciente de cada examen. ` +
+      `Promedio de cada persona: suma de sus calificaciones entre los ${E} examen${E === 1 ? "" : "es"} de la categoría (lo que no ha presentado cuenta como 0; quien no ha presentado ninguno queda en 0). ` +
+      `Promedio al pie de cada examen: solo de quienes lo presentaron. Promedio al pie de la columna Promedio: de todas las personas de la tabla.`;
+  }
+
+  ["ctrl-categoria", "ctrl-depto", "ctrl-puesto"].forEach(id => {
+    document.getElementById(id).addEventListener("change", renderControlMaestro);
+  });
+  document.getElementById("ctrl-buscar").addEventListener("input", renderControlMaestro);
+  document.getElementById("btn-ctrl-actualizar").addEventListener("click", async () => {
+    const nota = document.getElementById("ctrl-nota");
+    nota.textContent = "Actualizando datos...";
+    try {
+      await cargarDatosAnalisis(true);
+      poblarFiltrosAnalisis();
+      renderControlMaestro();
+    } catch (e) {
+      nota.textContent = "No se pudieron actualizar los datos: " + e.message;
+    }
+  });
+
   // ======= Acceso con contraseña compartida =======
   // Todos los instructores usan la MISMA cuenta (un solo correo, definido aquí abajo).
   // Tú creas esta cuenta una sola vez en Firebase (Authentication > Users > Add user)
@@ -1279,6 +2104,10 @@
     }
   });
 
+  document.getElementById("login-password").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("btn-login").click();
+  });
+
   document.getElementById("btn-logout").addEventListener("click", () => auth.signOut());
 
   auth.onAuthStateChanged(usuario => {
@@ -1289,12 +2118,18 @@
     if (usuario) {
       loginBox.style.display = "none";
       panel.style.display = "block";
+      document.getElementById("tabs-nav").style.display = "flex";
+      document.getElementById("btn-logout").style.display = "inline-block";
       cargarTablaExamenes();
       cargarResultados();
       actualizarConteoEmpleados();
+      const hashInicial = location.hash.replace("#", "");
+      mostrarTab(TABS.includes(hashInicial) ? hashInicial : "examenes");
     } else {
       loginBox.style.display = "block";
       panel.style.display = "none";
+      document.getElementById("tabs-nav").style.display = "none";
+      document.getElementById("btn-logout").style.display = "none";
       btnLogin.disabled = false;
       btnLogin.textContent = "Entrar";
     }
