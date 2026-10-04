@@ -165,6 +165,14 @@
     color: var(--muted);
     line-height: 1;
   }
+  td.celda-acciones { white-space: nowrap; }
+  .qr-contenido { text-align: center; padding: 6px 4px 2px; }
+  .qr-contenido h3 { margin: 0 28px 4px; font-size: 1.05rem; line-height: 1.3; }
+  .qr-contenido .qr-sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 14px; }
+  .qr-contenido canvas { width: 300px; max-width: 100%; height: auto; border: 1px solid var(--borde); border-radius: 8px; background: #fff; }
+  .qr-contenido .qr-link { font-size: 0.78rem; color: var(--muted); word-break: break-all; margin: 12px 0 14px; user-select: all; }
+  .qr-contenido .qr-acciones { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .qr-contenido .qr-acciones .btn-secundario { margin-right: 0; }
   .detalle-pregunta {
     border-bottom: 1px solid var(--borde);
     padding: 12px 0;
@@ -639,6 +647,22 @@
 
 </main>
 
+<div class="modal-overlay" id="modal-qr">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="cerrar" id="btn-cerrar-modal-qr" aria-label="Cerrar">&times;</button>
+    <div class="qr-contenido">
+      <h3 id="qr-titulo"></h3>
+      <p class="qr-sub">Quien escanee este código abre el examen directamente.</p>
+      <canvas id="qr-canvas" width="10" height="10"></canvas>
+      <div class="qr-link" id="qr-link"></div>
+      <div class="qr-acciones">
+        <button class="primario" id="btn-qr-descargar" type="button">Descargar imagen</button>
+        <button class="btn-secundario" id="btn-qr-copiar" type="button">Copiar link</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-detalle">
   <div class="modal-box">
     <button class="cerrar" id="btn-cerrar-modal" aria-label="Cerrar">&times;</button>
@@ -651,6 +675,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 
 <script>
   const firebaseConfig = {
@@ -861,6 +886,75 @@
     }
   });
 
+  // ======= Código QR de un examen =======
+  let qrActual = { titulo: "", link: "" };
+
+  // Dibuja el QR en un canvas grande (nítido para imprimir o pegar en una presentación)
+  function dibujarQR(canvas, texto) {
+    const qr = qrcode(0, "M");
+    qr.addData(texto);
+    qr.make();
+    const modulos = qr.getModuleCount();
+    const margen = 4; // zona blanca alrededor, necesaria para que se lea bien
+    const celda = Math.max(4, Math.ceil(1000 / (modulos + margen * 2)));
+    const lado = (modulos + margen * 2) * celda;
+    canvas.width = lado;
+    canvas.height = lado;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, lado, lado);
+    ctx.fillStyle = "#000000";
+    for (let f = 0; f < modulos; f++) {
+      for (let c = 0; c < modulos; c++) {
+        if (qr.isDark(f, c)) ctx.fillRect((c + margen) * celda, (f + margen) * celda, celda, celda);
+      }
+    }
+  }
+
+  function mostrarQR(titulo, link) {
+    if (typeof qrcode === "undefined") {
+      alert("No se pudo cargar el generador de códigos QR. Revisa tu conexión a internet y recarga la página.");
+      return;
+    }
+    qrActual = { titulo, link };
+    dibujarQR(document.getElementById("qr-canvas"), link);
+    document.getElementById("qr-titulo").textContent = titulo;
+    document.getElementById("qr-link").textContent = link;
+    document.getElementById("btn-qr-copiar").textContent = "Copiar link";
+    document.getElementById("modal-qr").style.display = "flex";
+  }
+
+  function cerrarQR() { document.getElementById("modal-qr").style.display = "none"; }
+  document.getElementById("btn-cerrar-modal-qr").addEventListener("click", cerrarQR);
+  document.getElementById("modal-qr").addEventListener("click", e => { if (e.target.id === "modal-qr") cerrarQR(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarQR(); });
+
+  document.getElementById("btn-qr-descargar").addEventListener("click", () => {
+    const canvas = document.getElementById("qr-canvas");
+    const nombre = ("QR - " + qrActual.titulo).replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() + ".png";
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }, "image/png");
+  });
+
+  document.getElementById("btn-qr-copiar").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-qr-copiar");
+    try {
+      await navigator.clipboard.writeText(qrActual.link);
+      btn.textContent = "¡Copiado!";
+    } catch (e) {
+      btn.textContent = "Selecciona el link y cópialo";
+    }
+    setTimeout(() => (btn.textContent = "Copiar link"), 1800);
+  });
+
   // ======= Listar exámenes existentes con acciones =======
   async function cargarTablaExamenes() {
     const tbody = document.getElementById("tabla-examenes-body");
@@ -891,9 +985,10 @@
                  value="${isoALocalInput(data.fechaLimite)}"
                  style="font-size:0.8rem; padding:5px; margin-bottom:0; width:150px;">
         </td>
-        <td>
+        <td class="celda-acciones">
           <button class="link-accion" data-accion="editar" data-id="${doc.id}">Editar</button>
           <button class="link-accion" data-accion="copiar" data-link="${link}">Copiar link</button>
+          <button class="link-accion" data-accion="qr" data-link="${esc(link)}" data-titulo="${esc(data.titulo)}">Código QR</button>
           <button class="link-accion" data-accion="toggle" data-id="${doc.id}" data-activo="${data.activo}">${data.activo ? "Desactivar" : "Activar"}</button>
           <button class="link-accion err" data-accion="eliminar" data-id="${doc.id}">Eliminar</button>
         </td>
@@ -917,6 +1012,10 @@
           input.disabled = false;
         }
       });
+    });
+
+    tbody.querySelectorAll("[data-accion='qr']").forEach(b => {
+      b.addEventListener("click", () => mostrarQR(b.dataset.titulo, b.dataset.link));
     });
 
     tbody.querySelectorAll("[data-accion='copiar']").forEach(b => {
