@@ -280,6 +280,11 @@
     }
     const examen = docRef.data();
 
+    if (examen.activo === false) {
+      app.innerHTML = `<div class="vacio">Este examen no está disponible por el momento.</div>`;
+      return;
+    }
+
     if (examen.fechaLimite && new Date() > new Date(examen.fechaLimite)) {
       app.innerHTML = `<div class="vacio">Este examen ya cerró y ya no acepta respuestas.</div>`;
       return;
@@ -332,20 +337,17 @@
       inputNomina.value = inputNomina.value.replace(/\D/g, "");
     });
 
+    // Fecha de hoy (hora local) como AAAA-MM-DD
+    function hoyLocal() {
+      const h = new Date();
+      const p = n => String(n).padStart(2, "0");
+      return `${h.getFullYear()}-${p(h.getMonth() + 1)}-${p(h.getDate())}`;
+    }
+
+    // Cada envío deja un registro "examen_nómina_día". Si ya existe el de hoy, esa persona ya contestó este examen hoy.
     async function yaContestoHoy(nomina) {
-      const snapshot = await db.collection("resultados")
-        .where("examenId", "==", examenId)
-        .where("numeroNomina", "==", nomina)
-        .get();
-      const hoy = new Date();
-      return snapshot.docs.some(doc => {
-        const f = doc.data().fecha;
-        if (!f) return false;
-        const fecha = f.toDate();
-        return fecha.getFullYear() === hoy.getFullYear() &&
-               fecha.getMonth() === hoy.getMonth() &&
-               fecha.getDate() === hoy.getDate();
-      });
+      const intento = await db.collection("intentos").doc(`${examenId}_${nomina}_${hoyLocal()}`).get();
+      return intento.exists;
     }
 
     inputNomina.addEventListener("blur", async () => {
@@ -432,7 +434,17 @@
       const aprobado = porcentaje >= umbral;
 
       try {
-        await db.collection("resultados").add({
+        // El resultado y el registro del intento del día se guardan juntos: si ya contestó hoy, no se guarda nada.
+        const dia = hoyLocal();
+        const marcaTiempo = firebase.firestore.FieldValue.serverTimestamp();
+        const batch = db.batch();
+        batch.set(db.collection("intentos").doc(`${examenId}_${nomina}_${dia}`), {
+          examenId: examenId,
+          numeroNomina: nomina,
+          dia: dia,
+          fecha: marcaTiempo
+        });
+        batch.set(db.collection("resultados").doc(), {
           examenId: examenId,
           examenTitulo: examen.titulo,
           categoria: examen.categoria,
@@ -444,12 +456,16 @@
           porcentaje: porcentaje,
           aprobado: aprobado,
           detalle: detalle,
-          fecha: firebase.firestore.FieldValue.serverTimestamp()
+          dia: dia,
+          fecha: marcaTiempo
         });
+        await batch.commit();
         mostrarResultado(examen, correctas, total, porcentaje, aprobado, examenId);
       } catch (error) {
         errorMsg.style.display = "block";
-        errorMsg.textContent = "Hubo un error al guardar tu examen: " + error.message;
+        errorMsg.textContent = (error && error.code === "permission-denied")
+          ? "No se pudo guardar tu examen. Puede que ya lo hayas enviado hoy o que el examen se haya cerrado. Recarga la página para verificarlo."
+          : "Hubo un error al guardar tu examen: " + error.message;
         btn.disabled = false;
         btn.textContent = "Enviar examen";
       }
@@ -478,8 +494,7 @@
         <p class="detalle">${correctas} de ${total} preguntas correctas</p>
         ${aprobado
           ? `<p class="detalle">¡Bien hecho! Tu resultado ha sido registrado.</p>`
-          : `<p class="detalle">No alcanzaste el mínimo requerido. Vuelve a presentar el examen cuando estés listo.</p>
-             <button class="primario" onclick="location.href='?examen=${examenId}'">Volver a intentar</button>`
+          : `<p class="detalle">No alcanzaste el mínimo requerido. Podrás volver a presentar el examen a partir de mañana.</p>`
         }
       </div>
     `;
