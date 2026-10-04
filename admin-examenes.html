@@ -740,9 +740,11 @@
 
   // ======= Edición de examenes existentes =======
   let examenEditandoId = null;
+  let tituloOriginalEdicion = null;
 
   function cancelarEdicion() {
     examenEditandoId = null;
+    tituloOriginalEdicion = null;
     document.getElementById("input-titulo").value = "";
     document.getElementById("input-umbral").value = 80;
     document.getElementById("input-categoria").value = "Institucionales";
@@ -762,6 +764,7 @@
     const examen = doc.data();
 
     examenEditandoId = id;
+    tituloOriginalEdicion = examen.titulo || "";
     document.getElementById("input-titulo").value = examen.titulo;
     document.getElementById("input-categoria").value = examen.categoria;
     document.getElementById("input-umbral").value = examen.umbralAprobacion || 80;
@@ -825,13 +828,13 @@
 
     try {
       if (examenEditandoId) {
-        await db.collection("examenes").doc(examenEditandoId).update({
-          titulo,
-          categoria,
-          umbralAprobacion: umbral,
-          fechaLimite,
-          preguntas
-        });
+        const cambios = { titulo, categoria, umbralAprobacion: umbral, fechaLimite, preguntas };
+        // Si el examen se renombra, se guarda el nombre anterior para que sus resultados viejos se sigan contando en el mismo examen.
+        // Los resultados ya guardados no se modifican.
+        if (tituloOriginalEdicion && normTexto(tituloOriginalEdicion) !== normTexto(titulo)) {
+          cambios.titulosAnteriores = firebase.firestore.FieldValue.arrayUnion(tituloOriginalEdicion);
+        }
+        await db.collection("examenes").doc(examenEditandoId).update(cambios);
         status.className = "status ok";
         status.textContent = "Examen actualizado correctamente.";
       } else {
@@ -1132,8 +1135,12 @@
 
   async function actualizarConteoEmpleados() {
     try {
-      const countSnap = await db.collection("empleados").count().get();
-      document.getElementById("conteo-empleados").textContent = countSnap.data().count;
+      const ref = db.collection("empleados");
+      // Esta versión de Firebase no trae count(); si no existe, se cuentan los documentos
+      const total = (typeof ref.count === "function")
+        ? (await ref.count().get()).data().count
+        : (await ref.get()).size;
+      document.getElementById("conteo-empleados").textContent = total;
     } catch (e) {
       document.getElementById("conteo-empleados").textContent = "?";
     }
@@ -1565,11 +1572,29 @@
       });
       examenesAnalisis = snapEx.docs.map(d => {
         const e = d.data();
-        return { titulo: e.titulo || "", categoria: e.categoria || "", creado: e.creado ? e.creado.toDate() : null };
+        return {
+          titulo: e.titulo || "", categoria: e.categoria || "", creado: e.creado ? e.creado.toDate() : null,
+          titulosAnteriores: Array.isArray(e.titulosAnteriores) ? e.titulosAnteriores : []
+        };
       }).sort((a, b) => (a.creado || 0) - (b.creado || 0));
       await cargarResultados();
     })().catch(err => { promesaAnalisis = null; throw err; });
     return promesaAnalisis;
+  }
+
+  // Nombres anteriores de un examen renombrado -> clave del nombre actual
+  function construirAlias() {
+    const alias = new Map();
+    examenesAnalisis.forEach(e => {
+      const clave = normTexto(e.titulo);
+      (e.titulosAnteriores || []).forEach(t => { const k = normTexto(t); if (k && k !== clave) alias.set(k, clave); });
+    });
+    examenesAnalisis.forEach(e => alias.delete(normTexto(e.titulo))); // un nombre vigente nunca es alias de otro
+    return alias;
+  }
+  function claveDeResultado(r, alias) {
+    const k = normTexto(r.examenTitulo);
+    return alias.get(k) || k;
   }
 
   // Lista de exámenes: los dados de alta en la plataforma más los que solo existen en el historial importado.
@@ -1581,8 +1606,9 @@
       if (clave && !mapa.has(clave)) mapa.set(clave, { clave, titulo: e.titulo, categoria: e.categoria || "Sin categoría" });
     });
     const extras = new Map();
+    const alias = construirAlias();
     todosResultados.forEach(r => {
-      const clave = normTexto(r.examenTitulo);
+      const clave = claveDeResultado(r, alias);
       if (clave && !mapa.has(clave) && !extras.has(clave)) {
         extras.set(clave, { clave, titulo: r.examenTitulo, categoria: r.categoria || "Sin categoría" });
       }
@@ -1602,8 +1628,9 @@
   // Una calificación por persona y examen: la del intento más reciente
   function construirVigentes() {
     const mapa = new Map();
+    const alias = construirAlias();
     todosResultados.forEach(r => {
-      const nom = normNomina(r.numeroNomina), ek = normTexto(r.examenTitulo);
+      const nom = normNomina(r.numeroNomina), ek = claveDeResultado(r, alias);
       if (!nom || !ek || typeof r.porcentaje !== "number" || isNaN(r.porcentaje)) return;
       const k = nom + "|" + ek;
       const previo = mapa.get(k);
@@ -2114,6 +2141,12 @@
     const loginBox = document.getElementById("login-box");
     const panel = document.getElementById("panel-contenido");
     const btnLogin = document.getElementById("btn-login");
+
+    // Solo la cuenta del administrador puede ver el panel; cualquier otra sesión se cierra
+    if (usuario && String(usuario.email).toLowerCase() !== CORREO_ACCESO.toLowerCase()) {
+      auth.signOut();
+      return;
+    }
 
     if (usuario) {
       loginBox.style.display = "none";
