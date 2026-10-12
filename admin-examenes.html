@@ -444,6 +444,51 @@
     <div class="status" id="status-empleados"></div>
   </div>
 
+  <h2>Instructores internos</h2>
+  <div class="card">
+    <p class="subtitle" style="margin-top:-4px;">Lista oficial de instructores. Quien contesta un examen elige aquí al instructor que le impartió el curso. Solo se guarda el nombre (no la nómina), porque la lista se muestra en el examen sin iniciar sesión.</p>
+    <label>Instructores: <span id="conteo-instructores">-</span></label>
+
+    <div style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:end;">
+      <div>
+        <label for="instructor-nuevo">Agregar un instructor</label>
+        <input type="text" id="instructor-nuevo" placeholder="Nombre completo">
+      </div>
+      <div>
+        <button class="btn-secundario" id="btn-agregar-instructor" type="button" style="margin:0 0 16px;">Agregar</button>
+      </div>
+    </div>
+
+    <label for="input-archivo-instructores">O sube el listado oficial (Excel o CSV, con una fila de encabezados)</label>
+    <input type="file" id="input-archivo-instructores" accept=".xlsx,.xls,.csv">
+
+    <div id="mapeo-instructores" style="display:none; margin-top:16px;">
+      <label for="col-instructor-nombre">Columna: Nombre del instructor</label>
+      <select id="col-instructor-nombre"></select>
+      <label style="font-weight:400; display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="chk-desactivar-faltantes" style="width:auto;">
+        Desactivar a los instructores que no vengan en este archivo
+      </label>
+      <label style="margin-top:12px;">Vista previa (primeras 5 filas)</label>
+      <table>
+        <thead><tr><th>Nombre</th></tr></thead>
+        <tbody id="tabla-preview-instructores-body"></tbody>
+      </table>
+      <p class="nota-filtros" id="nota-instructores-archivo"></p>
+      <button class="primario" id="btn-subir-instructores" style="margin-top:12px;">Subir instructores</button>
+    </div>
+    <div class="status" id="status-instructores"></div>
+
+    <div class="tabla-scroll" style="margin-top:18px; max-height:340px;">
+      <table id="tabla-instructores">
+        <thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="tabla-instructores-body">
+          <tr><td colspan="3" class="vacio">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <h2>Importar historial de Forms</h2>
   <div class="card">
     <p class="subtitle" style="margin-top:-4px;">Sube el Excel exportado de un examen anterior hecho en Forms, para agregar sus resultados al historial. Puedes repetirlo por cada examen viejo que quieras concentrar.</p>
@@ -515,14 +560,20 @@
   <section class="tab-panel w-lg" id="tab-resultados">
   <h2>Resultados</h2>
   <div class="card">
-    <div class="fila-2">
-      <div>
+    <div class="filtros-barra" style="margin-bottom:14px;">
+      <div class="campo">
         <label for="filtro-examen">Filtrar por examen</label>
         <select id="filtro-examen">
           <option value="">Todos los exámenes</option>
         </select>
       </div>
-      <div>
+      <div class="campo">
+        <label for="filtro-instructor">Filtrar por instructor</label>
+        <select id="filtro-instructor">
+          <option value="">Todos los instructores</option>
+        </select>
+      </div>
+      <div class="campo">
         <label for="filtro-busqueda">Buscar por nombre o nómina</label>
         <input type="text" id="filtro-busqueda" placeholder="Ej. Juan o 10234">
       </div>
@@ -539,10 +590,10 @@
     <div class="tabla-scroll">
     <table id="tabla-resultados">
       <thead>
-        <tr><th>Nombre</th><th>Nómina</th><th>Examen</th><th>Categoría</th><th>Resultado</th><th>Nivel</th><th>Estado</th><th>Fecha</th><th></th></tr>
+        <tr><th>Nombre</th><th>Nómina</th><th>Examen</th><th>Categoría</th><th>Instructor</th><th>Resultado</th><th>Nivel</th><th>Estado</th><th>Fecha</th><th></th></tr>
       </thead>
       <tbody id="tabla-resultados-body">
-        <tr><td colspan="9" class="vacio">Cargando...</td></tr>
+        <tr><td colspan="10" class="vacio">Cargando...</td></tr>
       </tbody>
     </table>
     </div>
@@ -1049,7 +1100,7 @@
 
   async function cargarResultados() {
     const tbody = document.getElementById("tabla-resultados-body");
-    tbody.innerHTML = `<tr><td colspan="9" class="vacio">Cargando...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="vacio">Cargando...</td></tr>`;
 
     const snapshot = await db.collection("resultados").get();
     todosResultados = snapshot.docs.map(doc => {
@@ -1060,6 +1111,7 @@
         departamento: d.departamento || "",
         examenTitulo: d.examenTitulo || "",
         categoria: d.categoria || "",
+        instructorNombre: d.instructorNombre || "",
         puntaje: d.puntaje,
         totalPreguntas: d.totalPreguntas,
         porcentaje: d.porcentaje,
@@ -1071,7 +1123,19 @@
     todosResultados.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
 
     poblarFiltroExamen();
+    poblarFiltroInstructor();
     renderTablaResultados();
+  }
+
+  function poblarFiltroInstructor() {
+    const select = document.getElementById("filtro-instructor");
+    const valorActual = select.value;
+    const nombres = [...new Set(todosResultados.map(r => r.instructorNombre))].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"));
+    const haySin = todosResultados.some(r => !r.instructorNombre);
+    select.innerHTML = `<option value="">Todos los instructores</option>` +
+      nombres.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") +
+      (haySin ? `<option value="__sin__">Sin instructor registrado</option>` : "");
+    select.value = [...select.options].some(o => o.value === valorActual) ? valorActual : "";
   }
 
   function poblarFiltroExamen() {
@@ -1089,11 +1153,17 @@
   function renderTablaResultados() {
     const tbody = document.getElementById("tabla-resultados-body");
     const examenFiltro = document.getElementById("filtro-examen").value;
+    const instructorFiltro = document.getElementById("filtro-instructor").value;
     const busqueda = document.getElementById("filtro-busqueda").value.trim().toLowerCase();
 
     let filtrados = todosResultados;
     if (examenFiltro) {
       filtrados = filtrados.filter(r => r.examenTitulo === examenFiltro);
+    }
+    if (instructorFiltro === "__sin__") {
+      filtrados = filtrados.filter(r => !r.instructorNombre);
+    } else if (instructorFiltro) {
+      filtrados = filtrados.filter(r => r.instructorNombre === instructorFiltro);
     }
     if (busqueda) {
       filtrados = filtrados.filter(r =>
@@ -1106,7 +1176,7 @@
     document.getElementById("contador-resultados").textContent = `(${todosResultados.length})`;
 
     if (filtrados.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" class="vacio">No hay resultados con ese filtro.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="vacio">No hay resultados con ese filtro.</td></tr>`;
       document.getElementById("btn-mostrar-mas-resultados").style.display = "none";
       return;
     }
@@ -1132,6 +1202,7 @@
         <td>${r.numeroNomina}</td>
         <td>${r.examenTitulo}</td>
         <td>${r.categoria}</td>
+        <td>${r.instructorNombre ? esc(r.instructorNombre) : "—"}</td>
         <td>${r.puntaje}/${r.totalPreguntas} (${r.porcentaje}%)</td>
         <td><span class="nivel-badge ${nivel.clase}">${nivel.label}</span></td>
         <td><span class="badge ${r.aprobado ? "aprobado" : "reprobado"}">${r.aprobado ? "Aprobado" : "No aprobado"}</span></td>
@@ -1155,7 +1226,7 @@
 
     let html = `
       <h3 style="margin-top:0; margin-bottom:2px;">${r.examenTitulo}</h3>
-      <p class="subtitle" style="margin-top:0;">${r.nombre} · Nómina ${r.numeroNomina} · ${r.puntaje}/${r.totalPreguntas} (${r.porcentaje}%)</p>
+      <p class="subtitle" style="margin-top:0;">${r.nombre} · Nómina ${r.numeroNomina} · ${r.puntaje}/${r.totalPreguntas} (${r.porcentaje}%)${r.instructorNombre ? " · Instructor: " + esc(r.instructorNombre) : ""}</p>
     `;
 
     r.detalle.forEach((d, i) => {
@@ -1182,6 +1253,10 @@
   });
 
   document.getElementById("filtro-examen").addEventListener("change", () => {
+    limiteResultadosVisibles = 30;
+    renderTablaResultados();
+  });
+  document.getElementById("filtro-instructor").addEventListener("change", () => {
     limiteResultadosVisibles = 30;
     renderTablaResultados();
   });
@@ -1216,6 +1291,7 @@
       "Departamento": r.departamento || "",
       "Examen": r.examenTitulo,
       "Categoría": r.categoria,
+      "Instructor": r.instructorNombre || "",
       "Puntaje": `${r.puntaje}/${r.totalPreguntas}`,
       "Porcentaje": r.porcentaje,
       "Nivel": obtenerNivel(r.porcentaje).label,
@@ -1405,6 +1481,182 @@
     } finally {
       btn.disabled = false;
       btn.textContent = "Subir a Firestore";
+    }
+  });
+
+  // ======= Instructores internos =======
+  let instructoresLista = [];   // { id, nombre, activo }
+  let filasInstructores = [];
+
+  // El id del instructor sale de su nombre (sin acentos ni mayúsculas): así, volver a subir el mismo nombre no lo duplica
+  function idInstructor(nombre) {
+    return normTexto(nombre).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  function limpiarNombre(valor) {
+    return String(valor == null ? "" : valor).replace(/\s+/g, " ").trim();
+  }
+
+  async function cargarInstructores() {
+    try {
+      const snap = await db.collection("instructores").get();
+      instructoresLista = snap.docs.map(d => ({
+        id: d.id,
+        nombre: String(d.data().nombre || ""),
+        activo: d.data().activo !== false
+      })).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    } catch (e) {
+      document.getElementById("conteo-instructores").textContent = "?";
+      return;
+    }
+    renderInstructores();
+  }
+
+  function renderInstructores() {
+    const activos = instructoresLista.filter(i => i.activo).length;
+    document.getElementById("conteo-instructores").textContent =
+      `${activos} activo${activos === 1 ? "" : "s"} de ${instructoresLista.length}`;
+    const tbody = document.getElementById("tabla-instructores-body");
+    if (instructoresLista.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="vacio">Todavía no hay instructores. Agrega uno o sube el listado oficial.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = instructoresLista.map(i => `
+      <tr>
+        <td>${esc(i.nombre)}</td>
+        <td><span class="badge ${i.activo ? "activo" : "inactivo"}">${i.activo ? "Activo" : "Inactivo"}</span></td>
+        <td><button class="link-accion" data-instructor="${esc(i.id)}" data-activo="${i.activo}">${i.activo ? "Desactivar" : "Activar"}</button></td>
+      </tr>
+    `).join("");
+    tbody.querySelectorAll("[data-instructor]").forEach(b => {
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        try {
+          await db.collection("instructores").doc(b.dataset.instructor).update({
+            activo: b.dataset.activo !== "true",
+            actualizado: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        } catch (e) {
+          alert("No se pudo cambiar el estado: " + e.message);
+        }
+        cargarInstructores();
+      });
+    });
+  }
+
+  // --- agregar uno a mano
+  document.getElementById("btn-agregar-instructor").addEventListener("click", async () => {
+    const input = document.getElementById("instructor-nuevo");
+    const status = document.getElementById("status-instructores");
+    const nombre = limpiarNombre(input.value);
+    const id = idInstructor(nombre);
+    if (!id) {
+      status.className = "status err";
+      status.textContent = "Escribe el nombre del instructor.";
+      return;
+    }
+    try {
+      await db.collection("instructores").doc(id).set({
+        nombre, activo: true, actualizado: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      input.value = "";
+      status.className = "status ok";
+      status.textContent = `Instructor agregado: ${nombre}.`;
+      cargarInstructores();
+    } catch (e) {
+      status.className = "status err";
+      status.textContent = "No se pudo agregar: " + e.message;
+    }
+  });
+
+  // --- subir el listado oficial
+  function nombresInstructoresDelArchivo() {
+    const col = document.getElementById("col-instructor-nombre").value;
+    const mapa = new Map(); // id -> nombre
+    filasInstructores.forEach(f => {
+      const nombre = limpiarNombre(f[col]);
+      const id = idInstructor(nombre);
+      if (nombre && id && !mapa.has(id)) mapa.set(id, nombre);
+    });
+    return mapa;
+  }
+
+  function actualizarVistaPreviaInstructores() {
+    const nombres = [...nombresInstructoresDelArchivo().values()];
+    document.getElementById("tabla-preview-instructores-body").innerHTML =
+      nombres.slice(0, 5).map(n => `<tr><td>${esc(n)}</td></tr>`).join("") ||
+      `<tr><td class="vacio">No se encontraron nombres en esa columna.</td></tr>`;
+    document.getElementById("nota-instructores-archivo").textContent =
+      `${nombres.length} nombre${nombres.length === 1 ? "" : "s"} distinto${nombres.length === 1 ? "" : "s"} en el archivo.`;
+  }
+
+  document.getElementById("input-archivo-instructores").addEventListener("change", (evento) => {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+    const status = document.getElementById("status-instructores");
+    status.className = "status";
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const libro = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+      filasInstructores = leerHojaConEncabezados(libro.Sheets[libro.SheetNames[0]]);
+      if (filasInstructores.length === 0) {
+        status.className = "status err";
+        status.textContent = "El archivo no tiene filas de datos.";
+        return;
+      }
+      const headers = Object.keys(filasInstructores[0]);
+      const sel = document.getElementById("col-instructor-nombre");
+      sel.innerHTML = headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join("");
+      sel.value = adivinarColumna(headers, ["nombre", "instructor"]);
+      document.getElementById("mapeo-instructores").style.display = "block";
+      actualizarVistaPreviaInstructores();
+    };
+    lector.readAsArrayBuffer(archivo);
+  });
+  document.getElementById("col-instructor-nombre").addEventListener("change", actualizarVistaPreviaInstructores);
+
+  document.getElementById("btn-subir-instructores").addEventListener("click", async () => {
+    const status = document.getElementById("status-instructores");
+    const btn = document.getElementById("btn-subir-instructores");
+    const nombres = nombresInstructoresDelArchivo();
+    if (nombres.size === 0) {
+      status.className = "status err";
+      status.textContent = "No se encontraron nombres en la columna elegida.";
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const desactivarFaltantes = document.getElementById("chk-desactivar-faltantes").checked;
+      if (desactivarFaltantes) await cargarInstructores(); // para saber a quién desactivar
+
+      const ahora = firebase.firestore.FieldValue.serverTimestamp();
+      const operaciones = [...nombres].map(([id, nombre]) => ({ id, datos: { nombre, activo: true, actualizado: ahora }, merge: true }));
+      let desactivados = 0;
+      if (desactivarFaltantes) {
+        instructoresLista.filter(i => i.activo && !nombres.has(i.id)).forEach(i => {
+          operaciones.push({ id: i.id, datos: { activo: false, actualizado: ahora }, merge: true });
+          desactivados++;
+        });
+      }
+
+      const TAMANO_LOTE = 400;
+      for (let i = 0; i < operaciones.length; i += TAMANO_LOTE) {
+        const batch = db.batch();
+        operaciones.slice(i, i + TAMANO_LOTE).forEach(op => {
+          batch.set(db.collection("instructores").doc(op.id), op.datos, { merge: op.merge });
+        });
+        await batch.commit();
+      }
+
+      status.className = "status ok";
+      status.textContent = `Listo: se cargaron ${nombres.size} instructores` + (desactivados ? ` y se desactivaron ${desactivados} que no venían en el archivo.` : ".");
+      document.getElementById("mapeo-instructores").style.display = "none";
+      document.getElementById("input-archivo-instructores").value = "";
+      cargarInstructores();
+    } catch (error) {
+      status.className = "status err";
+      status.textContent = "Error al subir: " + error.message;
+    } finally {
+      btn.disabled = false;
     }
   });
 
@@ -2141,7 +2393,7 @@
         const r = resultadoDeUnidad(vigentes, nom, ex);
         if (r) {
           const nv = obtenerNivel(r.porcentaje);
-          celdas += `<td class="fecha">${fmtFecha(r.fecha)}</td><td class="calif c-${nv.clase}" title="${esc(nv.label + " · " + r.examenTitulo)}">${r.porcentaje}</td>`;
+          celdas += `<td class="fecha">${fmtFecha(r.fecha)}</td><td class="calif c-${nv.clase}" title="${esc(nv.label + " · " + r.examenTitulo + (r.instructorNombre ? " · Instructor: " + r.instructorNombre : ""))}">${r.porcentaje}</td>`;
           notas.push(r.porcentaje); cols[i].n++; cols[i].suma += r.porcentaje;
         } else {
           celdas += `<td class="fecha"></td><td class="calif"></td>`;
@@ -2255,6 +2507,7 @@
       cargarTablaExamenes();
       cargarResultados();
       actualizarConteoEmpleados();
+      cargarInstructores();
       const hashInicial = location.hash.replace("#", "");
       mostrarTab(TABS.includes(hashInicial) ? hashInicial : "examenes");
     } else {
