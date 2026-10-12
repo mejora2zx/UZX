@@ -72,6 +72,18 @@
     margin-bottom: 16px;
   }
   label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; }
+  select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--borde);
+    font-size: 1rem;
+    margin-bottom: 16px;
+    background: white;
+    font-family: inherit;
+    color: var(--text);
+  }
+  select:disabled { background: #F0F1F6; color: var(--muted); }
   input[type="text"] {
     width: 100%;
     padding: 10px;
@@ -174,6 +186,12 @@
 
   // ======= CATEGORÍAS FIJAS DE LA PLATAFORMA =======
   const CATEGORIAS = ["Institucionales", "Extrusión", "Impresión", "Conversión", "Corrugado"];
+
+  // Evita que un nombre con caracteres especiales rompa la página
+  function esc(texto) {
+    return String(texto == null ? "" : texto)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
 
   const app = document.getElementById("app");
   const btnVolver = document.getElementById("btn-volver");
@@ -320,6 +338,10 @@
         <label for="input-nombre">Nombre completo</label>
         <input type="text" id="input-nombre" placeholder="Se completa automáticamente" readonly>
 
+        <label for="select-instructor">Instructor que impartió el curso</label>
+        <select id="select-instructor"><option value="">Cargando instructores...</option></select>
+        <div class="estado-busqueda" id="estado-instructor"></div>
+
         ${preguntasHtml}
 
         <div class="error-msg" id="error-msg" style="display:none;"></div>
@@ -331,6 +353,41 @@
 
     const inputNomina = document.getElementById("input-nomina");
     const btnEnviar = document.getElementById("btn-enviar");
+    const selectInstructor = document.getElementById("select-instructor");
+
+    // Para enviar hace falta una nómina válida (que no haya contestado hoy) y haber elegido al instructor
+    let nominaValida = false;
+    let instructores = [];
+    function actualizarBoton() {
+      btnEnviar.disabled = !(nominaValida && selectInstructor.value);
+    }
+    selectInstructor.addEventListener("change", actualizarBoton);
+
+    async function cargarInstructores() {
+      const estadoInstructor = document.getElementById("estado-instructor");
+      try {
+        const snap = await db.collection("instructores").where("activo", "==", true).get();
+        instructores = snap.docs
+          .map(d => ({ id: d.id, nombre: String(d.data().nombre || "") }))
+          .filter(i => i.nombre)
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+        if (instructores.length === 0) {
+          selectInstructor.innerHTML = `<option value="">No hay instructores registrados</option>`;
+          selectInstructor.disabled = true;
+          estadoInstructor.style.color = "var(--err)";
+          estadoInstructor.textContent = "No hay instructores registrados. Avisa al administrador para poder enviar el examen.";
+          return;
+        }
+        selectInstructor.innerHTML = `<option value="">Selecciona al instructor</option>` +
+          instructores.map(i => `<option value="${esc(i.id)}">${esc(i.nombre)}</option>`).join("");
+      } catch (e) {
+        selectInstructor.innerHTML = `<option value="">No se pudo cargar la lista</option>`;
+        selectInstructor.disabled = true;
+        estadoInstructor.style.color = "var(--err)";
+        estadoInstructor.textContent = "No se pudo cargar la lista de instructores. Recarga la página.";
+      }
+    }
+    cargarInstructores();
 
     // Solo se permiten números en la nómina
     inputNomina.addEventListener("input", () => {
@@ -355,7 +412,8 @@
       const estado = document.getElementById("estado-busqueda-empleado");
       const nombreInput = document.getElementById("input-nombre");
 
-      btnEnviar.disabled = true;
+      nominaValida = false;
+      actualizarBoton();
       nombreInput.value = "";
 
       if (!nomina) { estado.textContent = ""; return; }
@@ -383,7 +441,8 @@
         departamentoActual = emp.departamento || "";
         estado.style.color = "var(--ok)";
         estado.textContent = `${emp.nombre} · ${emp.departamento}`;
-        btnEnviar.disabled = false;
+        nominaValida = true;
+        actualizarBoton();
       } catch (e) {
         estado.style.color = "var(--err)";
         estado.textContent = "No se pudo verificar, intenta de nuevo.";
@@ -398,7 +457,8 @@
 
       // Validamos que todo esté contestado antes de calificar
       const respuestas = [];
-      let faltantes = !nombre || !nomina;
+      const instructor = instructores.find(i => i.id === selectInstructor.value);
+      let faltantes = !nombre || !nomina || !instructor;
       for (let i = 0; i < examen.preguntas.length; i++) {
         const seleccion = document.querySelector(`input[name="pregunta-${i}"]:checked`);
         if (!seleccion) faltantes = true;
@@ -407,7 +467,7 @@
 
       if (faltantes) {
         errorMsg.style.display = "block";
-        errorMsg.textContent = "Completa tu nombre, número de nómina y todas las preguntas antes de enviar.";
+        errorMsg.textContent = "Completa tu número de nómina, elige al instructor y contesta todas las preguntas antes de enviar.";
         return;
       }
       errorMsg.style.display = "none";
@@ -456,6 +516,8 @@
           porcentaje: porcentaje,
           aprobado: aprobado,
           detalle: detalle,
+          instructorId: instructor.id,
+          instructorNombre: instructor.nombre,
           dia: dia,
           fecha: marcaTiempo
         });
@@ -464,7 +526,7 @@
       } catch (error) {
         errorMsg.style.display = "block";
         errorMsg.textContent = (error && error.code === "permission-denied")
-          ? "No se pudo guardar tu examen. Puede que ya lo hayas enviado hoy o que el examen se haya cerrado. Recarga la página para verificarlo."
+          ? "No se pudo guardar tu examen. Puede que ya lo hayas enviado hoy o que el examen o el instructor ya no estén disponibles. Recarga la página para verificarlo."
           : "Hubo un error al guardar tu examen: " + error.message;
         btn.disabled = false;
         btn.textContent = "Enviar examen";
