@@ -486,7 +486,7 @@
   <section class="tab-panel w-md" id="tab-bases">
   <h2>Base de personal (Sistemas)</h2>
   <div class="card">
-    <p class="subtitle" style="margin-top:-4px;">Sube aquí el archivo de Sistemas (Excel o CSV) para actualizar los datos de nómina, nombre y departamento. Puedes repetir este paso cada vez que te manden un archivo nuevo — se actualiza, no se duplica. Si el archivo trae la columna Puesto también se guarda: el Dashboard la usa para separar administrativos, operadores y ayudantes.</p>
+    <p class="subtitle" style="margin-top:-4px;">Sube aquí el archivo de Sistemas (Excel o CSV) para actualizar los datos de nómina, nombre y departamento. Puedes repetir este paso cada vez que te manden un archivo nuevo — se actualiza, no se duplica. Si el archivo trae la columna Puesto también se guarda: el Dashboard la usa para separar administrativos, operadores y ayudantes. Este paso agrega y actualiza personas, pero no quita a nadie: para las bajas usa «Bajas de personal».</p>
 
     <label for="input-archivo-empleados">Empleados actualmente en la base: <span id="conteo-empleados">-</span></label>
     <input type="file" id="input-archivo-empleados" accept=".xlsx,.xls,.csv">
@@ -568,71 +568,50 @@
     </div>
   </div>
 
-  <h2>Importar historial de Forms</h2>
+  <h2>Bajas de personal</h2>
   <div class="card">
-    <p class="subtitle" style="margin-top:-4px;">Sube el Excel exportado de un examen anterior hecho en Forms, para agregar sus resultados al historial. Puedes repetirlo por cada examen viejo que quieras concentrar.</p>
+    <p class="subtitle" style="margin-top:-4px;">Dar de baja a una persona la quita de la plantilla (Dashboard, Control Maestro y Reconocimiento) y ya no podrá contestar exámenes. Sus resultados anteriores se conservan. Al terminar se descarga un Excel con el registro de la baja. Hay dos formas de hacerlo:</p>
 
-    <div class="fila-2">
-      <div>
-        <label for="forms-titulo">Nombre del examen</label>
-        <input type="text" id="forms-titulo" placeholder="Ej. Buenas Prácticas de Manufactura (BPM)">
-      </div>
-      <div>
-        <label for="forms-categoria">Categoría</label>
-        <select id="forms-categoria">
-          <option>Institucionales</option>
-          <option>Extrusión</option>
-          <option>Impresión</option>
-          <option>Conversión</option>
-          <option>Corrugado</option>
-        </select>
-      </div>
-    </div>
-
-    <input type="file" id="input-archivo-forms" accept=".xlsx,.xls,.csv">
-
-    <div id="mapeo-forms" style="display:none; margin-top:16px;">
-      <div class="fila-2">
-        <div>
-          <label for="forms-col-nomina">Columna: Número de nómina</label>
-          <select id="forms-col-nomina"></select>
-        </div>
-        <div>
-          <label for="forms-col-fecha">Columna: Fecha de finalización</label>
-          <select id="forms-col-fecha"></select>
-        </div>
-      </div>
-      <div class="fila-2">
-        <div>
-          <label for="forms-col-puntaje">Columna: Puntaje obtenido</label>
-          <select id="forms-col-puntaje"></select>
-        </div>
-        <div>
-          <label for="forms-col-area">Columna: Área/Depto (si no está en tu base de personal)</label>
-          <select id="forms-col-area"></select>
-        </div>
-      </div>
-      <div class="fila-2">
-        <div>
-          <label for="forms-puntaje-max">Puntaje máximo posible</label>
-          <input type="number" id="forms-puntaje-max" value="100">
-        </div>
-        <div>
-          <label for="forms-umbral">% mínimo para aprobar (de ese entonces)</label>
-          <input type="number" id="forms-umbral" value="80">
-        </div>
-      </div>
-
-      <label style="margin-top:10px;">Vista previa (primeras 5 filas)</label>
-      <table id="tabla-preview-forms">
-        <thead><tr><th>Nómina</th><th>Fecha</th><th>Puntaje</th><th>%</th><th>Estado</th></tr></thead>
-        <tbody id="tabla-preview-forms-body"></tbody>
+    <label for="baja-buscar">1) Dar de baja a una persona (sin subir archivo)</label>
+    <input type="text" id="baja-buscar" placeholder="Número de nómina o nombre" autocomplete="off">
+    <div id="baja-uno-resultado" style="display:none;">
+      <table>
+        <thead><tr><th>No.</th><th>Nombre</th><th>Puesto</th><th>Departamento</th><th></th></tr></thead>
+        <tbody id="baja-uno-body"></tbody>
       </table>
-
-      <button class="primario" id="btn-subir-forms" style="margin-top:14px;">Importar resultados</button>
     </div>
+    <p class="nota-filtros" id="baja-uno-nota"></p>
+    <div class="status" id="status-baja-uno"></div>
 
-    <div class="status" id="status-forms"></div>
+    <hr style="border:none; border-top:1px solid var(--borde); margin:22px 0 16px;">
+
+    <label>2) Comparar con el listado completo de Sistemas</label>
+    <p class="subtitle" style="margin:-2px 0 10px; font-size:0.85rem;">Sube el listado completo y actual de personal. La plataforma te muestra quién está en la base y ya no viene en el archivo, para que lo des de baja. Sirve para revisar muchas bajas a la vez.</p>
+    <input type="file" id="input-archivo-bajas" accept=".xlsx,.xls,.csv">
+
+    <div id="bajas-area" style="display:none; margin-top:16px;">
+      <div style="max-width:320px;">
+        <label for="col-bajas-nomina">Columna: Número de nómina</label>
+        <select id="col-bajas-nomina"></select>
+      </div>
+      <div class="kpis" id="bajas-resumen"></div>
+      <div class="aviso-rec alerta" id="bajas-alerta" style="display:none;"></div>
+      <label id="bajas-confirmo-wrap" style="display:none; font-weight:400; margin-bottom:12px;">
+        <input type="checkbox" id="chk-bajas-confirmo" style="width:auto;"> Confirmo que este archivo es el listado completo de personal
+      </label>
+      <div class="rec-acciones">
+        <label><input type="checkbox" id="bajas-todos"> Seleccionar todos</label>
+        <button class="primario" id="btn-bajas" type="button" disabled>Dar de baja a los seleccionados</button>
+        <span id="bajas-conteo" style="color:var(--muted); font-size:0.9rem;"></span>
+      </div>
+      <div class="tabla-scroll" style="max-height:380px;">
+        <table id="tabla-bajas">
+          <thead><tr><th></th><th>No.</th><th>Nombre</th><th>Puesto</th><th>Departamento</th></tr></thead>
+          <tbody id="tabla-bajas-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="status" id="status-bajas"></div>
   </div>
 
   <h2>Importar calificaciones del Control Maestro (Excel)</h2>
@@ -1904,181 +1883,262 @@
     }
   });
 
-  // ======= Importar historial de exámenes hechos en Forms =======
-  let filasForms = [];
+  // ======= Bajas de personal =======
+  let bajasArchivo = null;      // { filas, colNombre }: lo leído del archivo de Sistemas
+  let bajasCandidatas = [];     // personas de la base que no vienen en el archivo
+  let bajasIncompleto = false;  // el archivo parece incompleto (faltan demasiadas personas)
 
-  document.getElementById("input-archivo-forms").addEventListener("change", (evento) => {
-    const archivo = evento.target.files[0];
-    if (!archivo) return;
+  function actualizarBotonBajas() {
+    const n = document.querySelectorAll("#tabla-bajas-body .baja-sel:checked").length;
+    const confirmado = !bajasIncompleto || document.getElementById("chk-bajas-confirmo").checked;
+    document.getElementById("btn-bajas").disabled = !(n > 0 && confirmado);
+    document.getElementById("bajas-conteo").textContent = bajasCandidatas.length ? `${n} seleccionada${n === 1 ? "" : "s"} de ${bajasCandidatas.length}` : "";
+  }
 
-    const status = document.getElementById("status-forms");
+  // Compara la base de personal contra el archivo: quién está en la base y no viene en el archivo, y cuántas altas trae el archivo
+  async function calcularBajas() {
+    const status = document.getElementById("status-bajas");
+    const col = document.getElementById("col-bajas-nomina").value;
+    const { filas, colNombre } = bajasArchivo;
+
+    // Personas del archivo. Si el archivo trae nombre, se exige que el renglón lo tenga (así no se cuentan renglones de totales).
+    const enArchivo = new Set();
+    filas.forEach(f => {
+      const nom = normNomina(f[col]);
+      if (!nom) return;
+      if (colNombre && !limpiarNombre(f[colNombre])) return;
+      enArchivo.add(nom);
+    });
+
+    const snap = await db.collection("empleados").get();
+    const base = snap.docs.map(d => {
+      const e = d.data();
+      return { id: d.id, numeroNomina: String(e.numeroNomina != null ? e.numeroNomina : d.id), nombre: String(e.nombre || ""), puesto: String(e.puesto || ""), departamento: String(e.departamento || "") };
+    });
+    const nominasBase = new Set(base.map(e => normNomina(e.numeroNomina)));
+    bajasCandidatas = base.filter(e => !enArchivo.has(normNomina(e.numeroNomina))).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    const altas = [...enArchivo].filter(n => !nominasBase.has(n)).length;
+
+    const kpis = document.getElementById("bajas-resumen");
+    const alerta = document.getElementById("bajas-alerta");
+    const tbody = document.getElementById("tabla-bajas-body");
+
+    if (enArchivo.size === 0) {
+      kpis.innerHTML = "";
+      alerta.style.display = "none";
+      tbody.innerHTML = "";
+      bajasCandidatas = [];
+      bajasIncompleto = false;
+      document.getElementById("bajas-confirmo-wrap").style.display = "none";
+      status.className = "status err";
+      status.textContent = "No encontré números de nómina en esa columna. Revisa que sea la columna correcta.";
+      actualizarBotonBajas();
+      return;
+    }
     status.className = "status";
 
-    const lector = new FileReader();
-    lector.onload = (e) => {
-      const datos = new Uint8Array(e.target.result);
-      const libro = XLSX.read(datos, { type: "array" });
-      const hoja = libro.Sheets[libro.SheetNames[0]];
-      filasForms = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+    kpis.innerHTML = `
+      <div class="kpi"><div class="etiqueta">En la base de personal</div><div class="valor">${base.length}</div><div class="sub">Personas registradas hoy</div></div>
+      <div class="kpi"><div class="etiqueta">En el archivo</div><div class="valor">${enArchivo.size}</div><div class="sub">Con número de nómina</div></div>
+      <div class="kpi"><div class="etiqueta">No vienen en el archivo</div><div class="valor naranja">${bajasCandidatas.length}</div><div class="sub">Posibles bajas</div></div>
+      <div class="kpi"><div class="etiqueta">Altas en el archivo</div><div class="valor">${altas}</div><div class="sub">${altas ? "Súbelas en «Base de personal»" : "Nadie nuevo"}</div></div>`;
 
-      if (filasForms.length === 0) {
+    // Si faltan demasiadas personas, lo más probable es que el archivo sea parcial (por ejemplo, solo altas o un departamento)
+    const pct = base.length ? (bajasCandidatas.length / base.length) * 100 : 0;
+    bajasIncompleto = bajasCandidatas.length > 10 && pct > 20;
+    if (bajasIncompleto) {
+      alerta.style.display = "block";
+      alerta.textContent = `Cuidado: el archivo trae ${enArchivo.size} personas y la base tiene ${base.length}, así que ${bajasCandidatas.length} (${Math.round(pct)}%) no vendrían en el archivo. Es mucho. Revisa que sea el listado completo de personal y que la columna de nómina sea la correcta; si solo trae altas o un departamento, no lo uses para dar de baja.`;
+    } else {
+      alerta.style.display = "none";
+    }
+    document.getElementById("bajas-confirmo-wrap").style.display = bajasIncompleto ? "block" : "none";
+    document.getElementById("chk-bajas-confirmo").checked = false;
+    document.getElementById("bajas-todos").checked = false;
+
+    if (bajasCandidatas.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="vacio">No hay bajas: todas las personas de la base vienen en el archivo.</td></tr>`;
+    } else {
+      tbody.innerHTML = bajasCandidatas.map((p, i) => `
+        <tr>
+          <td><input type="checkbox" class="baja-sel" data-i="${i}"></td>
+          <td>${esc(p.numeroNomina)}</td>
+          <td>${esc(p.nombre)}</td>
+          <td>${esc(p.puesto)}</td>
+          <td>${esc(p.departamento)}</td>
+        </tr>`).join("");
+      tbody.querySelectorAll(".baja-sel").forEach(c => c.addEventListener("change", actualizarBotonBajas));
+    }
+    actualizarBotonBajas();
+  }
+
+  document.getElementById("input-archivo-bajas").addEventListener("change", async (evento) => {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+    const status = document.getElementById("status-bajas");
+    status.className = "status";
+    document.getElementById("bajas-area").style.display = "none";
+    try {
+      const buffer = await archivo.arrayBuffer();
+      const libro = XLSX.read(new Uint8Array(buffer), { type: "array" });
+      const filas = leerHojaConEncabezados(libro.Sheets[libro.SheetNames[0]]);
+      if (filas.length === 0) {
         status.className = "status err";
         status.textContent = "El archivo no tiene filas de datos.";
         return;
       }
-
-      const headers = Object.keys(filasForms[0]);
-      const selNomina = document.getElementById("forms-col-nomina");
-      const selFecha = document.getElementById("forms-col-fecha");
-      const selPuntaje = document.getElementById("forms-col-puntaje");
-      const selArea = document.getElementById("forms-col-area");
-
-      const opciones = headers.map(h => `<option value="${h}">${h}</option>`).join("");
-      selNomina.innerHTML = opciones;
-      selFecha.innerHTML = opciones;
-      selPuntaje.innerHTML = opciones;
-      selArea.innerHTML = `<option value="">(ninguna)</option>` + opciones;
-
-      selNomina.value = adivinarColumna(headers, ["nomina", "número", "numero"]);
-      selFecha.value = adivinarColumna(headers, ["finalizaci", "hora de fin", "fecha"]);
-      selPuntaje.value = adivinarColumna(headers, ["total de puntos", "puntaje", "calificaci"]);
-      selArea.value = adivinarColumna(headers, ["área", "area", "depart"]);
-
-      document.getElementById("mapeo-forms").style.display = "block";
-      actualizarVistaPreviaForms();
-    };
-    lector.readAsArrayBuffer(archivo);
-  });
-
-  function actualizarVistaPreviaForms() {
-    if (filasForms.length === 0) return;
-    const colNomina = document.getElementById("forms-col-nomina").value;
-    const colFecha = document.getElementById("forms-col-fecha").value;
-    const colPuntaje = document.getElementById("forms-col-puntaje").value;
-    const puntajeMax = parseFloat(document.getElementById("forms-puntaje-max").value) || 100;
-    const umbral = parseFloat(document.getElementById("forms-umbral").value) || 80;
-
-    const tbody = document.getElementById("tabla-preview-forms-body");
-    tbody.innerHTML = filasForms.slice(0, 5).map(fila => {
-      const puntos = parseFloat(fila[colPuntaje]) || 0;
-      const porcentaje = Math.round((puntos / puntajeMax) * 100);
-      const aprobado = porcentaje >= umbral;
-      const fechaTexto = convertirFechaForms(fila[colFecha]).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
-      return `
-        <tr>
-          <td>${fila[colNomina]}</td>
-          <td>${fechaTexto}</td>
-          <td>${puntos}/${puntajeMax}</td>
-          <td>${porcentaje}%</td>
-          <td><span class="badge ${aprobado ? "aprobado" : "reprobado"}">${aprobado ? "Aprobado" : "No aprobado"}</span></td>
-        </tr>
-      `;
-    }).join("");
-  }
-
-  ["forms-col-nomina", "forms-col-fecha", "forms-col-puntaje", "forms-col-area", "forms-puntaje-max", "forms-umbral"].forEach(id => {
-    document.getElementById(id).addEventListener("change", actualizarVistaPreviaForms);
-  });
-
-  // Convierte una fecha de Excel (serial numérico) o texto a un objeto Date de JS
-  function convertirFechaForms(valor) {
-    let fecha;
-    if (valor instanceof Date) {
-      fecha = valor;
-    } else if (typeof valor === "number") {
-      fecha = new Date(Math.round((valor - 25569) * 86400 * 1000));
-    } else {
-      fecha = new Date(valor);
-    }
-    return isNaN(fecha.getTime()) ? new Date() : fecha;
-  }
-
-  document.getElementById("btn-subir-forms").addEventListener("click", async () => {
-    const status = document.getElementById("status-forms");
-    const btn = document.getElementById("btn-subir-forms");
-
-    const tituloExamen = document.getElementById("forms-titulo").value.trim();
-    const categoria = document.getElementById("forms-categoria").value;
-    const colNomina = document.getElementById("forms-col-nomina").value;
-    const colFecha = document.getElementById("forms-col-fecha").value;
-    const colPuntaje = document.getElementById("forms-col-puntaje").value;
-    const colArea = document.getElementById("forms-col-area").value;
-    const puntajeMax = parseFloat(document.getElementById("forms-puntaje-max").value) || 100;
-    const umbral = parseFloat(document.getElementById("forms-umbral").value) || 80;
-
-    if (!tituloExamen) {
+      const headers = Object.keys(filas[0]);
+      const sel = document.getElementById("col-bajas-nomina");
+      sel.innerHTML = headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join("");
+      sel.value = adivinarColumna(headers, ["nomina", "nómina", "número", "numero", "no.", "empleado"]);
+      bajasArchivo = { filas, colNombre: adivinarColumnaOpcional(headers, ["nombre"]) };
+      document.getElementById("bajas-area").style.display = "block";
+      await calcularBajas();
+    } catch (e) {
       status.className = "status err";
-      status.textContent = "Ponle un nombre al examen.";
-      return;
+      status.textContent = "No se pudo leer el archivo: " + e.message;
     }
+  });
+  document.getElementById("col-bajas-nomina").addEventListener("change", () => { if (bajasArchivo) calcularBajas(); });
+  document.getElementById("chk-bajas-confirmo").addEventListener("change", actualizarBotonBajas);
+  document.getElementById("bajas-todos").addEventListener("change", e => {
+    document.querySelectorAll("#tabla-bajas-body .baja-sel").forEach(c => { c.checked = e.target.checked; });
+    actualizarBotonBajas();
+  });
+
+  // Quita a las personas de la base de personal, descarga el registro de bajas en Excel y deja todo listo para releer la plantilla
+  async function ejecutarBajas(personas) {
+    const TAMANO_LOTE = 400;
+    for (let i = 0; i < personas.length; i += TAMANO_LOTE) {
+      const batch = db.batch();
+      personas.slice(i, i + TAMANO_LOTE).forEach(p => batch.delete(db.collection("empleados").doc(p.id)));
+      await batch.commit();
+    }
+    // Registro de las bajas (queda como evidencia de quién se quitó y cuándo)
+    const hoy = new Date();
+    const filasRegistro = personas.map(p => ({ "Número de nómina": p.numeroNomina, "Nombre": p.nombre, "Puesto": p.puesto, "Departamento": p.departamento, "Fecha de baja": fmtFecha(hoy) }));
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filasRegistro), "Bajas");
+    XLSX.writeFile(libro, `Bajas de personal ${hoy.toISOString().slice(0, 10)}.xlsx`);
+    promesaAnalisis = null; // el Dashboard, el Control Maestro y el Reconocimiento deben volver a leer la plantilla
+    baseBajas = null;
+    actualizarConteoEmpleados();
+  }
+
+  // --- comparar con el listado completo
+  document.getElementById("btn-bajas").addEventListener("click", async () => {
+    const status = document.getElementById("status-bajas");
+    const btn = document.getElementById("btn-bajas");
+    const marcadas = [...document.querySelectorAll("#tabla-bajas-body .baja-sel:checked")].map(c => bajasCandidatas[parseInt(c.dataset.i, 10)]);
+    if (marcadas.length === 0) return;
+    if (!confirm(`¿Dar de baja a ${marcadas.length} persona${marcadas.length === 1 ? "" : "s"}?\n\nDejarán de aparecer en la plantilla y no podrán contestar exámenes. Sus resultados anteriores se conservan. Al terminar se descargará un Excel con el registro de las bajas.`)) return;
 
     btn.disabled = true;
-    const TAMANO_LOTE = 400;
-    let procesados = 0;
-    let omitidos = 0;
-
     try {
-      for (let i = 0; i < filasForms.length; i += TAMANO_LOTE) {
-        const lote = filasForms.slice(i, i + TAMANO_LOTE);
-        const batch = db.batch();
-
-        for (const fila of lote) {
-          const nomina = String(fila[colNomina] || "").trim();
-          if (!nomina) { omitidos++; continue; }
-
-          const puntos = parseFloat(fila[colPuntaje]) || 0;
-          const porcentaje = Math.round((puntos / puntajeMax) * 100);
-          const aprobado = porcentaje >= umbral;
-
-          // Completamos nombre y departamento desde la base de personal, si existe
-          let nombre = "";
-          let departamento = colArea ? String(fila[colArea] || "").trim() : "";
-          try {
-            const empleadoDoc = await db.collection("empleados").doc(nomina).get();
-            if (empleadoDoc.exists) {
-              const emp = empleadoDoc.data();
-              nombre = emp.nombre || "";
-              departamento = emp.departamento || departamento;
-            }
-          } catch (e) { /* seguimos sin nombre si falla la búsqueda */ }
-
-          const fechaDate = convertirFechaForms(fila[colFecha]);
-          const ref = db.collection("resultados").doc();
-          batch.set(ref, {
-            examenId: null,
-            examenTitulo: tituloExamen,
-            categoria: categoria,
-            nombre: nombre,
-            numeroNomina: nomina,
-            departamento: departamento,
-            puntaje: puntos,
-            totalPreguntas: puntajeMax,
-            porcentaje: porcentaje,
-            aprobado: aprobado,
-            origen: "forms_historico",
-            fecha: firebase.firestore.Timestamp.fromDate(fechaDate)
-          });
-          procesados++;
-        }
-
-        await batch.commit();
-        btn.textContent = `Importando... ${procesados}/${filasForms.length}`;
-      }
-
+      await ejecutarBajas(marcadas);
+      await calcularBajas();
       status.className = "status ok";
-      status.textContent = `Listo: se importaron ${procesados} resultados históricos` +
-        (omitidos > 0 ? ` (se omitieron ${omitidos} filas sin número de nómina).` : ".");
-      document.getElementById("mapeo-forms").style.display = "none";
-      document.getElementById("input-archivo-forms").value = "";
-      cargarResultados();
+      status.textContent = `Listo: se dieron de baja ${marcadas.length} persona${marcadas.length === 1 ? "" : "s"}. Se descargó un Excel con el registro de las bajas.`;
     } catch (error) {
       status.className = "status err";
-      status.textContent = "Error al importar: " + error.message;
+      status.textContent = "Error al dar de baja: " + error.message;
     } finally {
-      btn.disabled = false;
-      btn.textContent = "Importar resultados";
+      actualizarBotonBajas();
     }
   });
+
+  // --- baja de una sola persona (buscar por nómina o nombre)
+  let baseBajas = null;          // { personas, cargadoEn }: copia reciente de la base de personal
+  let bajaUnoCandidatas = [];
+  let bajaUnoToken = 0;
+
+  async function obtenerBaseBajas() {
+    if (baseBajas && Date.now() - baseBajas.cargadoEn < 60000) return baseBajas.personas;
+    const snap = await db.collection("empleados").get();
+    const personas = snap.docs.map(d => {
+      const e = d.data();
+      return { id: d.id, numeroNomina: String(e.numeroNomina != null ? e.numeroNomina : d.id), nombre: String(e.nombre || ""), puesto: String(e.puesto || ""), departamento: String(e.departamento || "") };
+    });
+    baseBajas = { personas, cargadoEn: Date.now() };
+    return personas;
+  }
+
+  function buscarPersonaBaja(personas, consulta) {
+    const q = normTexto(consulta);
+    if (!q) return [];
+    if (/^\d+$/.test(q)) { // número de nómina: primero la coincidencia exacta, luego las que lo contienen
+      const exactas = personas.filter(p => normNomina(p.numeroNomina) === normNomina(q));
+      const parciales = personas.filter(p => !exactas.includes(p) && String(p.numeroNomina).includes(q));
+      return exactas.concat(parciales);
+    }
+    return personas.filter(p => normTexto(p.nombre).includes(q)).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }
+
+  function limpiarBajaUno() {
+    document.getElementById("baja-buscar").value = "";
+    document.getElementById("baja-uno-resultado").style.display = "none";
+    document.getElementById("baja-uno-body").innerHTML = "";
+    document.getElementById("baja-uno-nota").textContent = "";
+    bajaUnoCandidatas = [];
+  }
+
+  let temporizadorBajaUno = null;
+  document.getElementById("baja-buscar").addEventListener("input", () => {
+    clearTimeout(temporizadorBajaUno);
+    temporizadorBajaUno = setTimeout(async () => {
+      const consulta = document.getElementById("baja-buscar").value;
+      const nota = document.getElementById("baja-uno-nota");
+      const contenedor = document.getElementById("baja-uno-resultado");
+      const tbody = document.getElementById("baja-uno-body");
+      const token = ++bajaUnoToken;
+      const q = normTexto(consulta);
+      if (!q) { limpiarBajaUno(); return; }
+      if (!/^\d+$/.test(q) && q.length < 3) {
+        contenedor.style.display = "none"; bajaUnoCandidatas = [];
+        nota.textContent = "Escribe al menos 3 letras del nombre, o el número de nómina.";
+        return;
+      }
+      let personas;
+      try { personas = await obtenerBaseBajas(); }
+      catch (e) { nota.textContent = "No se pudo leer la base de personal: " + e.message; return; }
+      if (token !== bajaUnoToken) return; // llegó una búsqueda más nueva
+      const hallados = buscarPersonaBaja(personas, consulta);
+      bajaUnoCandidatas = hallados.slice(0, 10);
+      if (hallados.length === 0) {
+        contenedor.style.display = "none";
+        nota.textContent = `No encontré a nadie con «${consulta.trim()}» en la base de personal.`;
+        return;
+      }
+      tbody.innerHTML = bajaUnoCandidatas.map((p, i) => `
+        <tr>
+          <td>${esc(p.numeroNomina)}</td>
+          <td>${esc(p.nombre)}</td>
+          <td>${esc(p.puesto)}</td>
+          <td>${esc(p.departamento)}</td>
+          <td><button class="link-accion err" data-baja-uno="${i}">Dar de baja</button></td>
+        </tr>`).join("");
+      contenedor.style.display = "block";
+      nota.textContent = hallados.length > 10 ? `Hay ${hallados.length} coincidencias; se muestran 10. Escribe más para acotar.` : "";
+      tbody.querySelectorAll("[data-baja-uno]").forEach(b => b.addEventListener("click", () => darDeBajaUno(bajaUnoCandidatas[parseInt(b.dataset.bajaUno, 10)])));
+    }, 250);
+  });
+
+  async function darDeBajaUno(persona) {
+    const status = document.getElementById("status-baja-uno");
+    if (!persona) return;
+    if (!confirm(`¿Dar de baja a ${persona.nombre} (nómina ${persona.numeroNomina})?\n\nDejará de aparecer en la plantilla y no podrá contestar exámenes. Sus resultados anteriores se conservan. Al terminar se descargará un Excel con el registro de la baja.`)) return;
+    status.className = "status";
+    try {
+      await ejecutarBajas([persona]);
+      limpiarBajaUno();
+      status.className = "status ok";
+      status.textContent = `Listo: ${persona.nombre} (nómina ${persona.numeroNomina}) ya no está en la base de personal. Se descargó un Excel con el registro de la baja.`;
+      if (bajasArchivo) calcularBajas(); // si hay una comparación abierta, se actualiza
+    } catch (error) {
+      status.className = "status err";
+      status.textContent = "Error al dar de baja: " + error.message;
+    }
+  }
 
   // ======================================================================
   // PESTAÑAS
