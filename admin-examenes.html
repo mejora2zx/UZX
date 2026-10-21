@@ -453,7 +453,7 @@
       <option value="operativos">Solo operadores y ayudantes</option>
       <option value="administrativos">Solo administrativos</option>
     </select>
-    <p class="subtitle" style="margin-top:-12px; font-size:0.82rem;">Si el examen no le aplica a un grupo, en el Control Maestro y en el Dashboard esa persona aparece como N/A y no cuenta en sus promedios. Si un curso tiene varios exámenes, basta marcarlo en uno.</p>
+    <p class="subtitle" style="margin-top:-12px; font-size:0.82rem;">Si el examen no le aplica a un grupo, en el Control Maestro y en el Dashboard esa persona aparece como N/A y no cuenta en sus promedios, salvo que presente el examen: entonces sí cuenta. Si un curso tiene varios exámenes, basta marcarlo en uno.</p>
 
     <div id="preguntas-contenedor"></div>
 
@@ -2375,8 +2375,9 @@
       const nom = normNomina(emp.numeroNomina);
       let suma = 0, nAplicables = 0, nPresentados = 0, ultima = null;
       const celdas = cursos.map(curso => {
-        const aplica = aplicaAPersona(curso.aplicaA, emp.puesto);
         const r = resultadoDeUnidad(vigentes, nom, curso);
+        // Le aplica si su puesto está en "Aplica a" o si ya presentó el examen (un resultado real siempre cuenta)
+        const aplica = aplicaAPersona(curso.aplicaA, emp.puesto) || !!r;
         const vig = r ? estadoVigencia(r.fecha, hoy) : null;
         if (aplica) {
           nAplicables++;
@@ -2557,7 +2558,7 @@
 
     const vigentes = construirVigentes();
     // Solo cuenta a las personas a las que les aplica al menos un curso del alcance elegido
-    const plantilla = filtrarPlantilla(depto, tipo, "").filter(emp => alcance.some(u => aplicaAPersona(u.aplicaA, emp.puesto)));
+    const plantilla = filtrarPlantilla(depto, tipo, "").filter(emp => alcance.some(u => aplicaAPersona(u.aplicaA, emp.puesto) || resultadoDeUnidad(vigentes, normNomina(emp.numeroNomina), u)));
     const total = plantilla.length;
 
     const porExamen = alcance.map(ex => ({ ex, n: 0, suma: 0, aplican: 0 }));
@@ -2568,9 +2569,9 @@
       const nom = normNomina(emp.numeroNomina);
       const notas = [];
       porExamen.forEach(pe => {
-        if (!aplicaAPersona(pe.ex.aplicaA, emp.puesto)) return;
-        pe.aplican++;
         const r = resultadoDeUnidad(vigentes, nom, pe.ex);
+        if (!r && !aplicaAPersona(pe.ex.aplicaA, emp.puesto)) return; // no le aplica y no lo presentó
+        pe.aplican++;
         if (r) { notas.push(r.porcentaje); pe.n++; pe.suma += r.porcentaje; }
       });
       const d = emp.departamento || "Sin departamento";
@@ -2596,7 +2597,7 @@
     });
     const sinBase = nominasSinBase.size;
 
-    const partesNota = ["Cada persona cuenta una vez por curso (su resultado más reciente). Los exámenes con variantes, como «Básicos de Calidad - Impresión», se unen en un solo curso. Si eliges varios cursos, se promedian los que cada persona haya presentado. Si un curso no le aplica a un puesto, esas personas no se cuentan en ese curso."];
+    const partesNota = ["Cada persona cuenta una vez por curso (su resultado más reciente). Los exámenes con variantes, como «Básicos de Calidad - Impresión», se unen en un solo curso. Si eliges varios cursos, se promedian los que cada persona haya presentado. Si un curso no le aplica a un puesto, esas personas no se cuentan en ese curso, salvo que lo hayan presentado."];
     if (sinBase > 0) partesNota.push(`${sinBase} número(s) de nómina con resultados no están en la base de personal y no se incluyen aquí.`);
     document.getElementById("dash-nota").textContent = partesNota.join(" ");
 
@@ -2794,7 +2795,7 @@
       let celdas = "";
       f.celdas.forEach(c => {
         if (!c.aplica) {
-          const aviso = "No le aplica a su puesto; no cuenta en su promedio" + (c.r ? `. Tiene registrado: ${c.r.porcentaje}` : "");
+          const aviso = "No le aplica a su puesto; no cuenta en su promedio (si lo presenta, sí cuenta)";
           celdas += `<td class="fecha na"></td><td class="calif na" title="${esc(aviso)}">N/A</td>`;
         } else if (c.r) {
           const nv = obtenerNivel(c.r.porcentaje);
@@ -2853,7 +2854,7 @@
     const E = catalogo.length;
     const restringidos = catalogo.filter(c => c.aplicaA && c.aplicaA !== "todos");
     const txtRestr = restringidos.length
-      ? ` ${restringidos.map(c => "«" + c.titulo + "» " + textoAplicaA(c.aplicaA)).join("; ")}: a quien no le aplica se le muestra N/A y no cuenta en su promedio.`
+      ? ` ${restringidos.map(c => "«" + c.titulo + "» " + textoAplicaA(c.aplicaA)).join("; ")}: a quien no le aplica se le muestra N/A y no cuenta en su promedio, salvo que lo haya presentado (entonces sí cuenta).`
       : "";
     nota.textContent = `${N} persona(s) en la tabla. Se muestra el resultado más reciente de cada examen. ` +
       `Promedio de cada persona: suma de sus calificaciones entre los exámenes que le aplican (hasta ${E}; lo que no ha presentado cuenta como 0; quien no ha presentado ninguno queda en 0).${txtRestr} ` +
