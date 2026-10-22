@@ -191,6 +191,7 @@
   img.chart-imp { display: none; }
   @media print {
     body.imprimiendo-dashboard { background: #fff !important; }
+    body.imprimiendo-dashboard, body.imprimiendo-dashboard * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body.imprimiendo-dashboard header, body.imprimiendo-dashboard #login-box, body.imprimiendo-dashboard .modal-overlay,
     body.imprimiendo-dashboard .no-imprimir, body.imprimiendo-dashboard .tab-panel:not(#tab-dashboard) { display: none !important; }
     body.imprimiendo-dashboard main { padding: 0 !important; }
@@ -224,6 +225,7 @@
   .barra-fallo { display: inline-block; height: 8px; border-radius: 4px; background: #E53935; vertical-align: middle; margin-right: 6px; min-width: 1px; }
   @media print {
     body.imprimiendo-riesgo { background: #fff !important; }
+    body.imprimiendo-riesgo, body.imprimiendo-riesgo * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body.imprimiendo-riesgo header, body.imprimiendo-riesgo #login-box, body.imprimiendo-riesgo .modal-overlay,
     body.imprimiendo-riesgo .no-imprimir, body.imprimiendo-riesgo .tab-panel:not(#tab-riesgo) { display: none !important; }
     body.imprimiendo-riesgo main { padding: 0 !important; }
@@ -2995,7 +2997,7 @@
     return { dir, deptos, ex, pu };
   }
 
-  document.getElementById("btn-dash-pdf").addEventListener("click", () => {
+  document.getElementById("btn-dash-pdf").addEventListener("click", async () => {
     if (!document.getElementById("dash-kpis").children.length) return;
     const f = filtrosDashboardTexto();
     const sub = document.getElementById("dash-imp-filtros");
@@ -3006,10 +3008,11 @@
     const imagenes = [];
     [["chart-promedios", chartPromedios], ["chart-dona", chartDona], ["chart-participacion", chartParticipacion]].forEach(([id, grafica]) => {
       if (!grafica) return;
+      grafica.stop(); // si la gráfica todavía se está animando, se termina para fotografiarla completa
       const dpr = grafica.options.devicePixelRatio;
-      grafica.options.devicePixelRatio = 3; grafica.resize();
+      grafica.options.devicePixelRatio = 3; grafica.resize(); grafica.draw();
       const url = grafica.toBase64Image("image/png", 1);
-      grafica.options.devicePixelRatio = dpr; grafica.resize();
+      grafica.options.devicePixelRatio = dpr; grafica.resize(); grafica.draw();
       const img = document.createElement("img");
       img.className = "chart-imp"; img.dataset.chart = id; img.src = url; img.alt = "";
       document.getElementById(id).insertAdjacentElement("afterend", img);
@@ -3032,6 +3035,9 @@
       window.removeEventListener("afterprint", limpiar);
     };
     window.addEventListener("afterprint", limpiar);
+    // Se espera a que las imágenes terminen de cargar y a que la página se acomode; si no, la vista previa sale con las gráficas vacías
+    await Promise.all(imagenes.map(img => (img.decode ? img.decode() : Promise.resolve()).catch(() => {})));
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     window.print();
   });
   document.getElementById("btn-dash-actualizar").addEventListener("click", async () => {
