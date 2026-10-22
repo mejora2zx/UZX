@@ -775,7 +775,7 @@
   <div class="graficas-grid">
     <div class="card grafica-card">
       <div class="grafica-titulo">Promedio de calificación por examen</div>
-      <div class="grafica-nota">Azul: promedio de quienes lo presentaron. Morado: promedio considerando a toda la plantilla (quien no lo ha presentado cuenta como 0).</div>
+      <div class="grafica-nota">Azul: promedio de quienes lo presentaron. Morado: promedio considerando a toda la plantilla (quien no lo ha presentado cuenta como 0).<span id="dash-cursos-ocultos"></span></div>
       <div class="chart-box" style="height:340px;"><canvas id="chart-promedios"></canvas></div>
     </div>
     <div class="card grafica-card">
@@ -2792,9 +2792,16 @@
 
     // --- Gráfica 1: promedio por examen
     if (chartPromedios) chartPromedios.destroy();
-    const etiquetasEx = porExamen.map(pe => dividirEtiqueta(pe.ex.titulo, 20));
-    const datosPres = porExamen.map(pe => pe.n ? truncar1(pe.suma / pe.n) : null);
-    const datosPlant = porExamen.map(pe => pe.aplican ? truncar1(pe.suma / pe.aplican) : 0);
+    // Solo se muestran los cursos que le corresponden a alguien del filtro, o que alguien del filtro ya presentó.
+    // Un curso que no aplica a nadie de ese grupo y que nadie presentó (por ejemplo, exámenes de operadores en una dirección administrativa) se oculta.
+    const visibles = porExamen.filter(pe => pe.aplican > 0);
+    const ocultos = porExamen.length - visibles.length;
+    document.getElementById("dash-cursos-ocultos").textContent = !visibles.length
+      ? " Ningún curso le corresponde al personal de este filtro."
+      : (ocultos ? ` Se muestran solo los cursos que le corresponden al personal del filtro o que alguien ya presentó (se ocultan ${ocultos}).` : "");
+    const etiquetasEx = visibles.map(pe => dividirEtiqueta(pe.ex.titulo, 20));
+    const datosPres = visibles.map(pe => pe.n ? truncar1(pe.suma / pe.n) : null);
+    const datosPlant = visibles.map(pe => pe.aplican ? truncar1(pe.suma / pe.aplican) : 0);
     chartPromedios = new Chart(document.getElementById("chart-promedios"), {
       type: "bar",
       data: {
@@ -2802,12 +2809,12 @@
         datasets: [
           {
             label: "Promedio de quienes presentaron", data: datosPres, backgroundColor: "#0D18A8",
-            detalles: porExamen.map(pe => pe.n ? `Quienes presentaron: ${fmtProm(pe.suma / pe.n)} (${pe.n} persona${pe.n === 1 ? "" : "s"})` : "Nadie lo ha presentado"),
+            detalles: visibles.map(pe => pe.n ? `Quienes presentaron: ${fmtProm(pe.suma / pe.n)} (${pe.n} persona${pe.n === 1 ? "" : "s"})` : "Nadie lo ha presentado"),
             etiquetas: datosPres.map(v => v === null ? "" : String(v))
           },
           {
             label: "Promedio con toda la plantilla", data: datosPlant, backgroundColor: "#9631F7",
-            detalles: porExamen.map(pe => `A quienes les aplica: ${pe.aplican ? fmtProm(pe.suma / pe.aplican) : 0} (${pe.aplican} persona${pe.aplican === 1 ? "" : "s"})`),
+            detalles: visibles.map(pe => `A quienes les aplica: ${pe.aplican ? fmtProm(pe.suma / pe.aplican) : 0} (${pe.aplican} persona${pe.aplican === 1 ? "" : "s"})`),
             etiquetas: datosPlant.map(v => String(v))
           }
         ]
